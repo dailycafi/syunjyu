@@ -2,6 +2,8 @@
 
 import Link from 'next/link'
 import { format } from 'date-fns'
+import type { CSSProperties } from 'react'
+import { getNewsCategoryLabel } from '@/lib/newsCategories'
 
 interface NewsCardProps {
   news: {
@@ -10,6 +12,7 @@ interface NewsCardProps {
     url: string
     summary: string
     source: string
+    category?: string | null
     date: string
     starred: number
   }
@@ -19,14 +22,29 @@ interface NewsCardProps {
 export default function NewsCard({ news, onToggleStar }: NewsCardProps) {
   const dateObj = new Date(news.date)
   const formattedDate = format(dateObj, 'MMM dd, yyyy')
+  const categoryLabel = getNewsCategoryLabel(news.category)
+  const starButtonStyle: CSSProperties = news.starred
+    ? {
+        background: 'linear-gradient(135deg, var(--lover-rose), var(--lover-sky))',
+        color: '#fff',
+        boxShadow: '0 12px 30px rgba(176, 65, 107, 0.28)',
+      }
+    : {
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        color: 'var(--lover-rose)',
+        border: '1px solid rgba(176, 65, 107, 0.25)',
+      }
 
   return (
     <div className="group card card-hover p-6 animate-slide-up">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           {/* Source badge */}
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex flex-wrap items-center gap-2 mb-3">
             <span className="badge badge-primary">{news.source}</span>
+            <span className="badge bg-white border border-slate-200 text-slate-600 dark:bg-white/10 dark:text-slate-300 dark:border-white/10">
+              {categoryLabel}
+            </span>
             <span className="text-xs text-slate-500 dark:text-slate-400">{formattedDate}</span>
             {news.starred === 1 && (
               <span className="badge bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
@@ -37,7 +55,7 @@ export default function NewsCard({ news, onToggleStar }: NewsCardProps) {
 
           {/* Title */}
           <Link href={`/news/${news.id}/`}>
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 hover:text-primary-600 dark:hover:text-primary-400 transition-colors cursor-pointer line-clamp-2 mb-2">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 hover-text-lover transition-colors cursor-pointer line-clamp-2 mb-2">
               {news.title}
             </h3>
           </Link>
@@ -53,7 +71,7 @@ export default function NewsCard({ news, onToggleStar }: NewsCardProps) {
           <div className="flex items-center gap-4">
             <Link
               href={`/news/${news.id}/`}
-              className="inline-flex items-center gap-1 text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
+              className="inline-flex items-center gap-1 text-sm font-medium text-lover hover:opacity-80 transition-colors"
             >
               <span>Read more</span>
               <svg className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -79,11 +97,10 @@ export default function NewsCard({ news, onToggleStar }: NewsCardProps) {
         <button
           onClick={() => onToggleStar(news.id, !news.starred)}
           className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-200 ${
-            news.starred
-              ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 hover:scale-110 hover:rotate-12'
-              : 'bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:text-amber-500 hover:scale-110'
+            news.starred ? 'hover:scale-110 hover:rotate-6' : 'hover:scale-105'
           }`}
           title={news.starred ? 'Remove star' : 'Add star'}
+          style={starButtonStyle}
         >
           <svg
             className={`w-5 h-5 ${news.starred ? 'fill-current' : 'fill-none'}`}

@@ -3,7 +3,9 @@
 
 use std::process::{Child, Command};
 use std::sync::Mutex;
-use tauri::State;
+use std::time::Duration;
+use tauri::{Manager, State};
+use tokio::time::sleep;
 
 // State to hold the Python backend process
 struct PythonBackend(Mutex<Option<Child>>);
@@ -101,7 +103,7 @@ fn main() {
             let handle = app.handle();
             tauri::async_runtime::spawn(async move {
                 // Wait a bit for the window to initialize
-                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                sleep(Duration::from_secs(1)).await;
 
                 // Start the backend
                 let state = handle.state::<PythonBackend>();

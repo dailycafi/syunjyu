@@ -3,8 +3,8 @@ import type { Metadata } from 'next'
 import Sidebar from '@/components/Sidebar'
 
 export const metadata: Metadata = {
-  title: 'AI Daily',
-  description: 'AI News Aggregation and Learning Desktop App',
+  title: 'Syunjyun Agent',
+  description: 'Syunjyun Agent · Culture-aware AI intelligence workspace',
 }
 
 export default function RootLayout({

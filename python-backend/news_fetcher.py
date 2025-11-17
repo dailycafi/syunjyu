@@ -138,6 +138,7 @@ async def fetch_rss_feed(source: Dict) -> List[Dict]:
                 "summary": summary[:500],  # Truncate summary
                 "content_raw": content_raw,
                 "source": source["name"],
+                "category": source.get("category"),
                 "date": date,
             })
 
@@ -244,11 +245,20 @@ def save_news_to_db(news_items: List[Dict]):
 
     for item in news_items:
         try:
+            category = item.get("category")
+            if not category:
+                cursor.execute(
+                    "SELECT category FROM news_sources WHERE name = ? LIMIT 1",
+                    (item["source"],)
+                )
+                row = cursor.fetchone()
+                category = row["category"] if row else None
+
             cursor.execute(
                 """
                 INSERT OR IGNORE INTO news
-                (title, url, summary, content_raw, source, date)
-                VALUES (?, ?, ?, ?, ?, ?)
+                (title, url, summary, content_raw, source, category, date)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     item["title"],
@@ -256,6 +266,7 @@ def save_news_to_db(news_items: List[Dict]):
                     item["summary"],
                     item["content_raw"],
                     item["source"],
+                    category,
                     item["date"],
                 )
             )

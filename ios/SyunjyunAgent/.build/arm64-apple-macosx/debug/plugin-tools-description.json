@@ -1,0 +1,840 @@
+{
+  "builtTestProducts" : [
+    {
+      "binaryPath" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentPackageTests.xctest/Contents/MacOS/SyunjyunAgentPackageTests",
+      "packagePath" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent",
+      "productName" : "SyunjyunAgentPackageTests"
+    }
+  ],
+  "copyCommands" : {
+    "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgent_SyunjyunAgentUI.bundle/Assets.xcassets" : {
+      "inputs" : [
+        {
+          "kind" : "directory",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/Resources/Assets.xcassets"
+        }
+      ],
+      "outputs" : [
+        {
+          "kind" : "directory",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgent_SyunjyunAgentUI.bundle/Assets.xcassets"
+        }
+      ]
+    },
+    "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgent_SyunjyunAgentUI.bundle/Info.plist" : {
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/Info.plist"
+        }
+      ],
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgent_SyunjyunAgentUI.bundle/Info.plist"
+        }
+      ]
+    }
+  },
+  "explicitTargetDependencyImportCheckingMode" : {
+    "none" : {
+
+    }
+  },
+  "generatedSourceTargetSet" : [
+
+  ],
+  "pluginDescriptions" : [
+
+  ],
+  "swiftCommands" : {
+    "C.SyunjyunAgentPackageTests-arm64-apple-macosx26.0-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentPackageTests.build/sources",
+      "importPath" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentPackageTests.derived/runner.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/Modules/SyunjyunAgentUITests.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentPackageTests.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "SyunjyunAgentPackageTests",
+      "moduleOutputPath" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/Modules/SyunjyunAgentPackageTests.swiftmodule",
+      "objects" : [
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentPackageTests.build/runner.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx10.13",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j14",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentPackageTests.build/include/SyunjyunAgentPackageTests-Swift.h",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.1.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.1.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "syunjyunagent"
+      ],
+      "outputFileMapPath" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentPackageTests.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentPackageTests.build/runner.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/Modules/SyunjyunAgentPackageTests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentPackageTests.derived/runner.swift"
+      ],
+      "tempsPath" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentPackageTests.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.SyunjyunAgentUI-arm64-apple-macosx26.0-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/sources",
+      "importPath" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/Design/AgentTheme.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/Models/NewsSource.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/Models/SourceRepository.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/Scenes/ContentView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/Scenes/SourceManagementView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/SyunjyunAgentApp.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/ViewModels/SourceManagementViewModel.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/ViewModels/SourcePreferenceStore.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/ViewModels/TaylorSwiftDesignViewModel.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/DerivedSources/resource_bundle_accessor.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "virtual",
+          "name" : "<SyunjyunAgentUI-arm64-apple-macosx26.0-debug.module-resources>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "SyunjyunAgentUI",
+      "moduleOutputPath" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/Modules/SyunjyunAgentUI.swiftmodule",
+      "objects" : [
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/AgentTheme.swift.o",
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/NewsSource.swift.o",
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/SourceRepository.swift.o",
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/ContentView.swift.o",
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/SourceManagementView.swift.o",
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/SyunjyunAgentApp.swift.o",
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/SourceManagementViewModel.swift.o",
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/SourcePreferenceStore.swift.o",
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/TaylorSwiftDesignViewModel.swift.o",
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/resource_bundle_accessor.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx10.13",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-j14",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_AVAILABLE",
+        "-module-cache-path",
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/include/SyunjyunAgentUI-Swift.h",
+        "-swift-version",
+        "5",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.1.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.1.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "syunjyunagent"
+      ],
+      "outputFileMapPath" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/AgentTheme.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/NewsSource.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/SourceRepository.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/ContentView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/SourceManagementView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/SyunjyunAgentApp.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/SourceManagementViewModel.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/SourcePreferenceStore.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/TaylorSwiftDesignViewModel.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/resource_bundle_accessor.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/Modules/SyunjyunAgentUI.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/Design/AgentTheme.swift",
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/Models/NewsSource.swift",
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/Models/SourceRepository.swift",
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/Scenes/ContentView.swift",
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/Scenes/SourceManagementView.swift",
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/SyunjyunAgentApp.swift",
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/ViewModels/SourceManagementViewModel.swift",
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/ViewModels/SourcePreferenceStore.swift",
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/ViewModels/TaylorSwiftDesignViewModel.swift",
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/DerivedSources/resource_bundle_accessor.swift"
+      ],
+      "tempsPath" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.SyunjyunAgentUITests-arm64-apple-macosx26.0-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUITests.build/sources",
+      "importPath" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Tests/SyunjyunAgentUITests/SourceManagementViewModelTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/Modules/SyunjyunAgentUI.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUITests.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "SyunjyunAgentUITests",
+      "moduleOutputPath" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/Modules/SyunjyunAgentUITests.swiftmodule",
+      "objects" : [
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUITests.build/SourceManagementViewModelTests.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx14.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j14",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-swift-version",
+        "5",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.1.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.1.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "syunjyunagent"
+      ],
+      "outputFileMapPath" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUITests.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUITests.build/SourceManagementViewModelTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/Modules/SyunjyunAgentUITests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Tests/SyunjyunAgentUITests/SourceManagementViewModelTests.swift"
+      ],
+      "tempsPath" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUITests.build",
+      "wholeModuleOptimization" : false
+    }
+  },
+  "swiftFrontendCommands" : {
+
+  },
+  "swiftTargetScanArgs" : {
+    "SyunjyunAgentPackageTests" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "SyunjyunAgentPackageTests",
+      "-package-name",
+      "syunjyunagent",
+      "-c",
+      "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentPackageTests.derived/runner.swift",
+      "-I",
+      "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx10.13",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j14",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentPackageTests.build/include/SyunjyunAgentPackageTests-Swift.h",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.1.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.1.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "syunjyunagent",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "SyunjyunAgentUI" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "SyunjyunAgentUI",
+      "-package-name",
+      "syunjyunagent",
+      "-c",
+      "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/Design/AgentTheme.swift",
+      "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/Models/NewsSource.swift",
+      "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/Models/SourceRepository.swift",
+      "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/Scenes/ContentView.swift",
+      "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/Scenes/SourceManagementView.swift",
+      "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/SyunjyunAgentApp.swift",
+      "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/ViewModels/SourceManagementViewModel.swift",
+      "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/ViewModels/SourcePreferenceStore.swift",
+      "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/ViewModels/TaylorSwiftDesignViewModel.swift",
+      "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/DerivedSources/resource_bundle_accessor.swift",
+      "-I",
+      "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx10.13",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-j14",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_AVAILABLE",
+      "-module-cache-path",
+      "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/include/SyunjyunAgentUI-Swift.h",
+      "-swift-version",
+      "5",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.1.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.1.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "syunjyunagent",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "SyunjyunAgentUITests" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "SyunjyunAgentUITests",
+      "-package-name",
+      "syunjyunagent",
+      "-c",
+      "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Tests/SyunjyunAgentUITests/SourceManagementViewModelTests.swift",
+      "-I",
+      "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx14.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j14",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-swift-version",
+      "5",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.1.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.1.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "syunjyunagent",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ]
+  },
+  "targetDependencyMap" : {
+    "SyunjyunAgentPackageTests" : [
+      "SyunjyunAgentUITests",
+      "SyunjyunAgentUI"
+    ],
+    "SyunjyunAgentUI" : [
+
+    ],
+    "SyunjyunAgentUITests" : [
+      "SyunjyunAgentUI"
+    ]
+  },
+  "testDiscoveryCommands" : {
+
+  },
+  "testEntryPointCommands" : {
+    "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentPackageTests.derived/runner.swift" : {
+      "inputs" : [
+
+      ],
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentPackageTests.derived/runner.swift"
+        }
+      ]
+    }
+  },
+  "traitConfiguration" : {
+    "default" : {
+
+    }
+  },
+  "writeCommands" : {
+    "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentPackageTests.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentPackageTests.derived/runner.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentPackageTests.build/sources"
+    },
+    "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentPackageTests.product/Objects.LinkFileList" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<link-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentPackageTests.build/runner.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/AgentTheme.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/ContentView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/NewsSource.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/SourceManagementView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/SourceManagementViewModel.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/SourcePreferenceStore.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/SourceRepository.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/SyunjyunAgentApp.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/TaylorSwiftDesignViewModel.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/resource_bundle_accessor.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUITests.build/SourceManagementViewModelTests.swift.o"
+        }
+      ],
+      "outputFilePath" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentPackageTests.product/Objects.LinkFileList"
+    },
+    "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/Design/AgentTheme.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/Models/NewsSource.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/Models/SourceRepository.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/Scenes/ContentView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/Scenes/SourceManagementView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/SyunjyunAgentApp.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/ViewModels/SourceManagementViewModel.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/ViewModels/SourcePreferenceStore.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Sources/SyunjyunAgentUI/ViewModels/TaylorSwiftDesignViewModel.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/DerivedSources/resource_bundle_accessor.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUI.build/sources"
+    },
+    "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUITests.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Tests/SyunjyunAgentUITests/SourceManagementViewModelTests.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUITests.build/sources"
+    },
+    "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt" : {
+      "alwaysOutOfDate" : true,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<swift-get-version>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+        }
+      ],
+      "outputFilePath" : "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+    }
+  }
+}

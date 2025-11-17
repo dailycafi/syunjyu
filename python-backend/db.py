@@ -18,6 +18,12 @@ def get_connection():
     return conn
 
 
+def column_exists(cursor, table_name: str, column_name: str) -> bool:
+    """Check if a column exists in a SQLite table"""
+    cursor.execute(f"PRAGMA table_info({table_name})")
+    return any(row["name"] == column_name for row in cursor.fetchall())
+
+
 def init_database():
     """Initialize database with all required tables"""
     conn = get_connection()
@@ -41,6 +47,7 @@ def init_database():
             summary TEXT,
             content_raw TEXT,
             source TEXT NOT NULL,
+            category TEXT,
             date TEXT NOT NULL,
             starred INTEGER DEFAULT 0,
             user_id INTEGER,
@@ -49,6 +56,10 @@ def init_database():
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
     """)
+
+    # Backfill missing category column for existing installations
+    if not column_exists(cursor, "news", "category"):
+        cursor.execute("ALTER TABLE news ADD COLUMN category TEXT")
 
     # Concepts table
     cursor.execute("""

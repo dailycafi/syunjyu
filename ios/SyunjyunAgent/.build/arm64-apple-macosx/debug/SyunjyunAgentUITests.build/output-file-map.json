@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUITests.build/master.swiftdeps"
+  },
+  "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/Tests/SyunjyunAgentUITests/SourceManagementViewModelTests.swift": {
+    "dependencies": "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUITests.build/SourceManagementViewModelTests.d",
+    "object": "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUITests.build/SourceManagementViewModelTests.swift.o",
+    "swiftmodule": "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUITests.build/SourceManagementViewModelTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUITests.build/SourceManagementViewModelTests.swiftdeps",
+    "diagnostics": "/Users/cafi/Workspace/syunjyu/ios/SyunjyunAgent/.build/arm64-apple-macosx/debug/SyunjyunAgentUITests.build/SourceManagementViewModelTests.dia"
+  }
+}

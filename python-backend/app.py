@@ -82,6 +82,10 @@ class SettingUpdate(BaseModel):
     value: str
 
 
+class SourceToggleRequest(BaseModel):
+    enabled: bool
+
+
 # ==================== Settings Endpoints ====================
 
 @app.get("/api/settings")
@@ -166,6 +170,7 @@ async def chat(request: ChatRequest):
 async def get_news(
     starred: Optional[bool] = None,
     source: Optional[str] = None,
+    category: Optional[str] = None,
     date: Optional[str] = None,
     limit: int = Query(default=50, le=200),
     offset: int = 0,
@@ -184,6 +189,10 @@ async def get_news(
     if source:
         query += " AND source = ?"
         params.append(source)
+
+    if category:
+        query += " AND category = ?"
+        params.append(category)
 
     if date:
         query += " AND date LIKE ?"
@@ -260,6 +269,25 @@ async def get_news_sources():
     sources = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return {"sources": sources}
+
+
+@app.post("/api/news/sources/{source_id}/toggle")
+async def toggle_news_source(source_id: int, request: SourceToggleRequest):
+    """Enable or disable a news source"""
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE news_sources SET enabled = ? WHERE id = ?",
+        (1 if request.enabled else 0, source_id),
+    )
+    conn.commit()
+    updated = cursor.rowcount
+    conn.close()
+
+    if updated == 0:
+        raise HTTPException(status_code=404, detail="News source not found")
+
+    return {"status": "success", "source_id": source_id, "enabled": request.enabled}
 
 
 # ==================== Concepts Endpoints ====================
