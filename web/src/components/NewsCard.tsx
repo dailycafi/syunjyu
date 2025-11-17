@@ -21,37 +21,56 @@ export default function NewsCard({ news, onToggleStar }: NewsCardProps) {
   const formattedDate = format(dateObj, 'MMM dd, yyyy')
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
+    <div className="group card card-hover p-6 animate-slide-up">
       <div className="flex items-start justify-between gap-4">
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
+          {/* Source badge */}
+          <div className="flex items-center gap-2 mb-3">
+            <span className="badge badge-primary">{news.source}</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">{formattedDate}</span>
+            {news.starred === 1 && (
+              <span className="badge bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                ⭐ Starred
+              </span>
+            )}
+          </div>
+
           {/* Title */}
           <Link href={`/news/${news.id}/`}>
-            <h3 className="text-lg font-semibold text-gray-900 hover:text-primary transition cursor-pointer">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 hover:text-primary-600 dark:hover:text-primary-400 transition-colors cursor-pointer line-clamp-2 mb-2">
               {news.title}
             </h3>
           </Link>
 
-          {/* Metadata */}
-          <div className="flex items-center gap-3 mt-2 text-sm text-gray-600">
-            <span className="font-medium">{news.source}</span>
-            <span>•</span>
-            <span>{formattedDate}</span>
-          </div>
-
           {/* Summary */}
           {news.summary && (
-            <p className="mt-3 text-gray-700 line-clamp-3">{news.summary}</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2 mb-4">
+              {news.summary}
+            </p>
           )}
 
           {/* Actions */}
-          <div className="flex items-center gap-4 mt-4">
+          <div className="flex items-center gap-4">
+            <Link
+              href={`/news/${news.id}/`}
+              className="inline-flex items-center gap-1 text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
+            >
+              <span>Read more</span>
+              <svg className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+
             <a
               href={news.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm text-primary hover:underline"
+              className="inline-flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
             >
-              Read full article →
+              <span>Source</span>
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
             </a>
           </div>
         </div>
@@ -59,14 +78,25 @@ export default function NewsCard({ news, onToggleStar }: NewsCardProps) {
         {/* Star button */}
         <button
           onClick={() => onToggleStar(news.id, !news.starred)}
-          className={`flex-shrink-0 text-2xl transition ${
+          className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-200 ${
             news.starred
-              ? 'opacity-100 hover:scale-110'
-              : 'opacity-30 hover:opacity-100 hover:scale-110'
+              ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 hover:scale-110 hover:rotate-12'
+              : 'bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:text-amber-500 hover:scale-110'
           }`}
           title={news.starred ? 'Remove star' : 'Add star'}
         >
-          ⭐
+          <svg
+            className={`w-5 h-5 ${news.starred ? 'fill-current' : 'fill-none'}`}
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
+            />
+          </svg>
         </button>
       </div>
     </div>
