@@ -1,0 +1,140 @@
+AI Daily - Complete File Tree
+═══════════════════════════════════════════════════════════════
+
+ai-daily/
+├── package.json                      # Root npm configuration
+├── .gitignore                       # Git ignore rules
+├── .editorconfig                    # Editor configuration
+│
+├── 📖 Documentation
+│   ├── README.md                    # Main documentation (comprehensive)
+│   ├── QUICKSTART.md                # 5-minute quick start guide
+│   ├── DEVELOPMENT.md               # Developer guide
+│   ├── PROJECT_STRUCTURE.md         # Architecture documentation
+│   ├── PROJECT_SUMMARY.md           # Project overview (中文)
+│   ├── CHECKLIST.md                 # Implementation checklist
+│   └── FILE_TREE.txt                # This file
+│
+├── 🌐 web/                          # Next.js Frontend
+│   ├── package.json                 # Frontend dependencies
+│   ├── next.config.js               # Next.js config (static export)
+│   ├── tsconfig.json                # TypeScript config
+│   ├── tailwind.config.js           # Tailwind CSS config
+│   ├── postcss.config.js            # PostCSS config
+│   ├── .env.example                 # Environment variables template
+│   │
+│   └── src/
+│       ├── app/                     # Next.js App Router
+│       │   ├── layout.tsx           # Root layout with sidebar
+│       │   ├── page.tsx             # Home page (news feed)
+│       │   ├── globals.css          # Global styles + Tailwind
+│       │   │
+│       │   ├── news/
+│       │   │   └── [id]/
+│       │   │       └── page.tsx     # News detail page
+│       │   │
+│       │   ├── concepts/
+│       │   │   └── page.tsx         # Concepts library page
+│       │   │
+│       │   ├── phrases/
+│       │   │   └── page.tsx         # Learning library page
+│       │   │
+│       │   ├── settings/
+│       │   │   └── page.tsx         # Settings & config page
+│       │   │
+│       │   └── account/
+│       │       └── page.tsx         # Account & sync page
+│       │
+│       ├── components/
+│       │   ├── Sidebar.tsx          # Navigation sidebar
+│       │   └── NewsCard.tsx         # News item card
+│       │
+│       ├── lib/
+│       │   └── api.ts               # API client (all endpoints)
+│       │
+│       └── store/                   # State management (future)
+│
+├── 🐍 python-backend/               # Python FastAPI Backend
+│   ├── requirements.txt             # Python dependencies
+│   ├── .env.example                 # Environment variables template
+│   ├── app.py                       # Main FastAPI application (20+ endpoints)
+│   ├── db.py                        # Database operations & schema
+│   ├── model_local.py               # Local LLM interface (3 preset models)
+│   ├── model_remote.py              # Remote LLM API (OpenAI, DeepSeek)
+│   ├── news_fetcher.py              # News aggregation (54 sources)
+│   ├── concept_extractor.py         # LLM-based concept extraction
+│   ├── pdf_exporter.py              # PDF generation (ReportLab)
+│   ├── sync_client.py               # Cloud sync client
+│   │
+│   └── models/                      # Pydantic models (future expansion)
+│
+├── 🦀 src-tauri/                    # Tauri Desktop Application
+│   ├── Cargo.toml                   # Rust dependencies
+│   ├── tauri.conf.json              # Tauri configuration
+│   ├── build.rs                     # Build script
+│   │
+│   ├── src/
+│   │   └── main.rs                  # Rust entry point (Python subprocess)
+│   │
+│   └── icons/                       # Application icons (placeholders)
+│
+├── ☁️  sync-server/                 # Optional Cloud Sync Server
+│   ├── requirements.txt             # Server dependencies
+│   ├── server.py                    # FastAPI sync server
+│   └── db.py                        # Server database
+│
+└── 🛠️  scripts/                     # Helper Scripts
+    ├── setup.sh                     # Complete project setup
+    ├── dev-backend.sh               # Start backend only
+    └── dev-sync-server.sh           # Start sync server only
+
+Generated Files (after running):
+─────────────────────────────────────
+├── database.sqlite                  # Local SQLite database
+├── sync-server/sync_database.sqlite # Sync server database
+├── web/.next/                       # Next.js build cache
+├── web/out/                         # Static export output
+├── src-tauri/target/                # Rust build artifacts
+└── **/venv/                         # Python virtual environments
+
+
+Key Features by File:
+═══════════════════════════════════════════════════════════════
+
+📱 Frontend Pages (Next.js):
+  - page.tsx              → News feed with star filtering
+  - news/[id]/page.tsx    → Article detail + text selection
+  - concepts/page.tsx     → Browse AI concepts
+  - phrases/page.tsx      → Learning library
+  - settings/page.tsx     → Model config + PDF export
+  - account/page.tsx      → Login/register + sync
+
+🔌 Backend APIs (FastAPI):
+  - /api/settings         → App settings
+  - /api/models/*         → LLM model info
+  - /api/chat             → LLM chat
+  - /api/news/*           → News operations
+  - /api/concepts/*       → Concept extraction
+  - /api/phrases/*        → Phrase management
+  - /api/export/pdf       → PDF generation
+  - /api/auth/*           → Authentication
+  - /api/sync/*           → Data synchronization
+
+📊 Database Tables:
+  - settings              → App configuration
+  - news                  → News articles (54 sources)
+  - concepts              → Extracted AI concepts
+  - phrases               → Saved learning phrases
+  - news_sources          → Source configuration
+
+🔧 Core Modules:
+  - model_local.py        → 3 preset models (extensible)
+  - model_remote.py       → OpenAI & DeepSeek integration
+  - news_fetcher.py       → 54 AI news sources
+  - concept_extractor.py  → LLM concept extraction
+  - pdf_exporter.py       → PDF export (3 types)
+  - sync_client.py        → Incremental sync
+
+Total: 45+ files created
+Lines: ~6,000+ LOC
+Ready: ✅ Fully functional skeleton
