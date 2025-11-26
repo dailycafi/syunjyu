@@ -21,5 +21,5 @@ pip install -q -r requirements.txt
 python db.py
 
 # Start backend
-echo "Backend starting on http://127.0.0.1:8000"
+echo "Backend starting on http://127.0.0.1:8500"
 python app.py

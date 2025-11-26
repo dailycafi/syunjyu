@@ -4,53 +4,74 @@ import { useEffect, useState } from 'react'
 import {
   getAllSettings,
   updateSetting,
-  getLocalModels,
-  getRemoteProviders,
   exportPDF,
 } from '@/lib/api'
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Record<string, string>>({})
-  const [localModels, setLocalModels] = useState<any[]>([])
-  const [remoteProviders, setRemoteProviders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  
+  // Local connection state
+  const [localHost, setLocalHost] = useState('127.0.0.1')
+  const [localPort, setLocalPort] = useState('8500')
 
   useEffect(() => {
+    // Load local connection settings from localStorage
+    if (typeof window !== 'undefined') {
+      const savedHost = localStorage.getItem('custom_api_host')
+      const savedPort = localStorage.getItem('custom_api_port')
+      if (savedHost) setLocalHost(savedHost)
+      if (savedPort) setLocalPort(savedPort)
+    }
+    
     loadData()
   }, [])
 
   const loadData = async () => {
     setLoading(true)
     try {
-      const [settingsData, modelsData, providersData] = await Promise.all([
-        getAllSettings(),
-        getLocalModels(),
-        getRemoteProviders(),
-      ])
-
+      const settingsData = await getAllSettings()
       setSettings(settingsData)
-      setLocalModels(modelsData.models || [])
-      setRemoteProviders(providersData.providers || [])
     } catch (error) {
       console.error('Failed to load settings:', error)
+      // Even if backend is down, we allow changing local settings
     } finally {
       setLoading(false)
     }
   }
 
-  const handleSave = async (key: string, value: string) => {
+  const handleSaveSetting = async (key: string, value: string) => {
     setSaving(true)
     try {
       await updateSetting(key, value)
       setSettings((prev) => ({ ...prev, [key]: value }))
-      alert('Setting saved successfully!')
+
+      // Enforce MiniMax when switching to Remote
+      if (key === 'model_provider' && value === 'remote') {
+        await updateSetting('remote_provider', 'minimax')
+        await updateSetting('remote_model_name', 'MiniMax-M2')
+        setSettings(prev => ({
+            ...prev, 
+            remote_provider: 'minimax',
+            remote_model_name: 'MiniMax-M2'
+        }))
+      }
+
+      // Dispatch custom event for Sidebar update
+      window.dispatchEvent(new Event('settings_updated'))
     } catch (error) {
       console.error('Failed to save setting:', error)
-      alert('Failed to save setting')
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleSaveLocalConnection = () => {
+    localStorage.setItem('custom_api_host', localHost)
+    localStorage.setItem('custom_api_port', localPort)
+    alert('Local connection settings saved. Please refresh to apply.')
+    window.location.reload()
   }
 
   const handleExportPDF = async (type: 'news' | 'concepts' | 'phrases') => {
@@ -70,159 +91,212 @@ export default function SettingsPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="container mx-auto px-6 py-8">
-        <div className="text-center py-12">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent"></div>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="container mx-auto px-6 py-8 max-w-4xl">
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Settings</h1>
+      <h1 className="text-3xl font-bold text-slate-900 mb-8">Settings</h1>
 
-      <div className="space-y-6">
-        {/* Model Provider Selection */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold mb-4">Model Settings</h2>
-
-          {/* Provider choice */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Model Provider
-            </label>
-            <select
-              value={settings.model_provider || 'local'}
-              onChange={(e) => handleSave('model_provider', e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-            >
-              <option value="local">Local Model</option>
-              <option value="remote">Remote API</option>
-            </select>
+      <div className="space-y-8">
+        
+        {/* AI Model Settings */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+            <h2 className="text-lg font-semibold text-slate-800">AI Model Configuration</h2>
+            <p className="text-sm text-slate-500">Choose between Local LLM Service or Remote API</p>
           </div>
-
-          {/* Local model selection */}
-          {settings.model_provider === 'local' && (
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Local Model
+          
+          <div className="p-6 space-y-6">
+            {/* Provider Selection */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Model Provider
               </label>
               <select
-                value={settings.local_model_name || 'local_medium'}
-                onChange={(e) => handleSave('local_model_name', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                value={settings.model_provider || 'local'}
+                onChange={(e) => handleSaveSetting('model_provider', e.target.value)}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                {localModels.map((model) => (
-                  <option key={model.id} value={model.id}>
-                    {model.name} - {model.description}
-                  </option>
-                ))}
+                <option value="local">Local</option>
+                <option value="remote">Remote</option>
               </select>
-              <p className="mt-2 text-sm text-gray-500">
-                Note: Local models are preset. No download required.
-              </p>
             </div>
-          )}
 
-          {/* Remote provider selection */}
-          {settings.model_provider === 'remote' && (
-            <>
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Remote Provider
-                </label>
-                <select
-                  value={settings.remote_provider || 'openai'}
-                  onChange={(e) => handleSave('remote_provider', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                >
-                  {remoteProviders.map((provider) => (
-                    <option key={provider.id} value={provider.id}>
-                      {provider.name}
-                    </option>
-                  ))}
-                </select>
+            {/* Local Service Configuration */}
+            {(settings.model_provider === 'local' || !settings.model_provider) && (
+              <div className="space-y-4 pt-4 border-t border-slate-100">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Model Name
+                  </label>
+                  <select
+                    value={settings.local_model_name || 'gpt-oss-20B'}
+                    onChange={(e) => {
+                      setSettings(prev => ({ ...prev, local_model_name: e.target.value }))
+                      handleSaveSetting('local_model_name', e.target.value)
+                    }}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="gpt-oss-20B">gpt-oss-20B</option>
+                    <option value="Qwen 3 (14B)">Qwen 3 (14B)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Base URL
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.local_model_base_url || 'http://127.0.0.1:1234/v1'}
+                    onChange={(e) => setSettings(prev => ({ ...prev, local_model_base_url: e.target.value }))}
+                    onBlur={(e) => handleSaveSetting('local_model_base_url', e.target.value)}
+                    placeholder="http://127.0.0.1:1234/v1"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+                  />
+                  <p className="mt-1 text-xs text-slate-500">
+                    Examples: LM Studio (http://127.0.0.1:1234/v1), Ollama (http://127.0.0.1:11434/v1)
+                  </p>
+                </div>
               </div>
+            )}
 
-              {/* API Key inputs */}
-              <div className="space-y-4">
-                {remoteProviders.map((provider) => (
-                  <div key={provider.id}>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      {provider.name} API Key
-                    </label>
+            {/* Remote Service Configuration */}
+            {settings.model_provider === 'remote' && (
+              <div className="space-y-4 pt-4 border-t border-slate-100">
+                 <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Provider
+                  </label>
+                  <select
+                    disabled
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-500 cursor-not-allowed"
+                    value="MINIMAX"
+                  >
+                    <option value="MINIMAX">MINIMAX</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    API Key
+                  </label>
+                  <div className="relative">
                     <input
-                      type="password"
-                      value={settings[`${provider.id}_api_key`] || ''}
-                      onChange={(e) =>
-                        setSettings((prev) => ({
-                          ...prev,
-                          [`${provider.id}_api_key`]: e.target.value,
-                        }))
-                      }
-                      onBlur={(e) =>
-                        handleSave(`${provider.id}_api_key`, e.target.value)
-                      }
-                      placeholder="Enter API key"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                      type="text"
+                      disabled
+                      value="sk-••••••••••••••••••••••••"
+                      className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-500 cursor-not-allowed font-mono"
                     />
+                    <div className="mt-2 text-xs text-slate-500">
+                      Demo version uses built-in key. API Key modification is disabled.
+                    </div>
                   </div>
-                ))}
+                </div>
               </div>
-            </>
-          )}
-        </div>
-
-        {/* PDF Export */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold mb-4">Export Data</h2>
-          <p className="text-gray-600 mb-4">
-            Export your data as PDF files for offline viewing.
-          </p>
-
-          <div className="flex flex-wrap gap-3">
-            <button
-              onClick={() => handleExportPDF('news')}
-              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition"
-            >
-              Export News
-            </button>
-            <button
-              onClick={() => handleExportPDF('concepts')}
-              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition"
-            >
-              Export Concepts
-            </button>
-            <button
-              onClick={() => handleExportPDF('phrases')}
-              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition"
-            >
-              Export Phrases
-            </button>
+            )}
           </div>
         </div>
 
-        {/* Auto-sync */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold mb-4">Synchronization</h2>
-
-          <label className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              checked={settings.auto_sync_enabled === 'true'}
-              onChange={(e) =>
-                handleSave('auto_sync_enabled', e.target.checked ? 'true' : 'false')
-              }
-              className="w-5 h-5 text-primary rounded focus:ring-primary"
-            />
-            <span className="text-gray-700">
-              Enable automatic synchronization (when logged in)
-            </span>
-          </label>
+        {/* Backend Connection (Local Settings) */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+            <h2 className="text-lg font-semibold text-slate-800">Backend Connection</h2>
+            <p className="text-sm text-slate-500">Configure connection to Python backend</p>
+          </div>
+          
+          <div className="p-6 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Host Address
+                </label>
+                <input
+                  type="text"
+                  value={localHost}
+                  onChange={(e) => setLocalHost(e.target.value)}
+                  placeholder="127.0.0.1"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Port
+                </label>
+                <input
+                  type="text"
+                  value={localPort}
+                  onChange={(e) => setLocalPort(e.target.value)}
+                  placeholder="8500"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                />
+              </div>
+            </div>
+            
+            <div className="flex justify-end">
+              <button
+                onClick={handleSaveLocalConnection}
+                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Save Connection
+              </button>
+            </div>
+          </div>
         </div>
+
+        {/* Export Data */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+            <h2 className="text-lg font-semibold text-slate-800">Export Data</h2>
+            <p className="text-sm text-slate-500">Download your data for offline use</p>
+          </div>
+          
+          <div className="p-6">
+            <div className="flex flex-wrap gap-4">
+              <button
+                onClick={() => handleExportPDF('news')}
+                className="px-4 py-2 bg-white border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-2"
+              >
+                <span>📰</span> Export News PDF
+              </button>
+              <button
+                onClick={() => handleExportPDF('concepts')}
+                className="px-4 py-2 bg-white border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-2"
+              >
+                <span>💡</span> Export Concepts PDF
+              </button>
+              <button
+                onClick={() => handleExportPDF('phrases')}
+                className="px-4 py-2 bg-white border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-2"
+              >
+                <span>📚</span> Export Phrases PDF
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Synchronization */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+            <h2 className="text-lg font-semibold text-slate-800">Synchronization</h2>
+          </div>
+          
+          <div className="p-6">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={settings.auto_sync_enabled === 'true'}
+                onChange={(e) =>
+                  handleSaveSetting('auto_sync_enabled', e.target.checked ? 'true' : 'false')
+                }
+                className="w-5 h-5 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+              />
+              <span className="text-slate-700">
+                Enable automatic synchronization when logged in
+              </span>
+            </label>
+          </div>
+        </div>
+
       </div>
     </div>
   )

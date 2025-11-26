@@ -1,7 +1,8 @@
 import NewsDetailPageClient from './NewsDetailPageClient'
 
-const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8000'
-const DEFAULT_STATIC_NEWS_LIMIT = 50
+const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8500'
+// Increased limit to ensure recent news (like id 1771) are included in static generation
+const DEFAULT_STATIC_NEWS_LIMIT = 2000
 
 type NewsDetailPageProps = {
   params: {
@@ -52,7 +53,7 @@ const fetchNewsIdsFromApi = async (limit: number): Promise<string[]> => {
 
     return data.news
       .map((item: { id?: number | string }) => (item?.id !== undefined ? String(item.id) : null))
-      .filter((value): value is string => Boolean(value))
+      .filter((value: string | null): value is string => Boolean(value))
   } catch (error) {
     console.warn('[news/[id]] generateStaticParams: Failed to prefetch news ids.', error)
     return []

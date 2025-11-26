@@ -53,6 +53,10 @@ def init_database():
             user_id INTEGER,
             updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
             deleted INTEGER DEFAULT 0,
+            is_read INTEGER DEFAULT 0,
+            hidden INTEGER DEFAULT 0,
+            ai_score INTEGER,
+            ai_reason TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
     """)
@@ -60,6 +64,16 @@ def init_database():
     # Backfill missing category column for existing installations
     if not column_exists(cursor, "news", "category"):
         cursor.execute("ALTER TABLE news ADD COLUMN category TEXT")
+    
+    # Backfill new columns
+    if not column_exists(cursor, "news", "is_read"):
+        cursor.execute("ALTER TABLE news ADD COLUMN is_read INTEGER DEFAULT 0")
+    if not column_exists(cursor, "news", "hidden"):
+        cursor.execute("ALTER TABLE news ADD COLUMN hidden INTEGER DEFAULT 0")
+    if not column_exists(cursor, "news", "ai_score"):
+        cursor.execute("ALTER TABLE news ADD COLUMN ai_score INTEGER")
+    if not column_exists(cursor, "news", "ai_reason"):
+        cursor.execute("ALTER TABLE news ADD COLUMN ai_reason TEXT")
 
     # Concepts table
     cursor.execute("""
@@ -83,11 +97,48 @@ def init_database():
             news_id INTEGER,
             text TEXT NOT NULL,
             note TEXT,
+            context_before TEXT,
+            context_after TEXT,
+            start_offset INTEGER,
+            end_offset INTEGER,
+            color TEXT DEFAULT '#fff3b0',
+            type TEXT DEFAULT 'vocabulary',
             user_id INTEGER,
             updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
             deleted INTEGER DEFAULT 0,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (news_id) REFERENCES news(id)
+        )
+    """)
+
+    if not column_exists(cursor, "phrases", "context_before"):
+        cursor.execute("ALTER TABLE phrases ADD COLUMN context_before TEXT")
+    if not column_exists(cursor, "phrases", "context_after"):
+        cursor.execute("ALTER TABLE phrases ADD COLUMN context_after TEXT")
+    if not column_exists(cursor, "phrases", "start_offset"):
+        cursor.execute("ALTER TABLE phrases ADD COLUMN start_offset INTEGER")
+    if not column_exists(cursor, "phrases", "end_offset"):
+        cursor.execute("ALTER TABLE phrases ADD COLUMN end_offset INTEGER")
+    if not column_exists(cursor, "phrases", "color"):
+        cursor.execute("ALTER TABLE phrases ADD COLUMN color TEXT DEFAULT '#fff3b0'")
+    if not column_exists(cursor, "phrases", "type"):
+        cursor.execute("ALTER TABLE phrases ADD COLUMN type TEXT DEFAULT 'vocabulary'")
+    if not column_exists(cursor, "phrases", "pronunciation"):
+        cursor.execute("ALTER TABLE phrases ADD COLUMN pronunciation TEXT")
+
+    # Article Analysis Cache table (stores expensive AI results)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS article_analysis (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            news_id INTEGER,
+            scope TEXT NOT NULL,
+            mode TEXT NOT NULL,
+            content TEXT NOT NULL,
+            model_used TEXT,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (news_id) REFERENCES news(id),
+            UNIQUE(news_id, scope, mode)
         )
     """)
 
@@ -110,6 +161,7 @@ def init_database():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_news_user ON news(user_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_concepts_news ON concepts(news_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_phrases_news ON phrases(news_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_article_analysis_lookup ON article_analysis(news_id, scope, mode)")
 
     conn.commit()
     conn.close()
@@ -125,8 +177,8 @@ def insert_default_settings():
     defaults = [
         ("model_provider", "local"),  # local or remote
         ("local_model_name", "local_medium"),
-        ("remote_provider", "openai"),
-        ("remote_model_name", "gpt-3.5-turbo"),
+        ("remote_provider", "minimax"),
+        ("remote_model_name", "MiniMax-M2"),
         ("openai_api_key", ""),
         ("deepseek_api_key", ""),
         ("user_id", ""),

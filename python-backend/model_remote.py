@@ -1,11 +1,12 @@
 """
 Remote LLM API handler
-Supports OpenAI, DeepSeek, and other API-compatible providers
+Supports OpenAI, DeepSeek, MiniMax (via Anthropic), and other API-compatible providers
 """
 
 import httpx
 from typing import Optional, Dict, List
-
+import os
+from anthropic import AsyncAnthropic
 
 class RemoteModelError(Exception):
     """Exception raised for remote model API errors"""
@@ -24,7 +25,11 @@ PROVIDERS = {
         "base_url": "https://api.deepseek.com/v1",
         "models": ["deepseek-chat", "deepseek-coder"],
     },
-    # Add more providers as needed
+    "minimax": {
+        "name": "MiniMax",
+        "base_url": "https://api.minimax.chat/v1", 
+        "models": ["MiniMax-M2"],
+    }
 }
 
 
@@ -45,21 +50,23 @@ async def generate_remote(
     model_name: str,
     prompt: str,
     api_key: str,
-    max_tokens: int = 512,
+    max_tokens: int = 1000,
     temperature: float = 0.7,
-    system_prompt: Optional[str] = None,
+    system_prompt: Optional[str] = "You are a helpful assistant.",
+    base_url: Optional[str] = None,
 ) -> str:
     """
     Generate text using remote API
 
     Args:
-        provider: Provider ID (e.g., "openai", "deepseek")
+        provider: Provider ID (e.g., "openai", "deepseek", "minimax")
         model_name: Model name/ID
         prompt: User prompt
         api_key: API key for authentication
         max_tokens: Maximum tokens to generate
         temperature: Sampling temperature (0-2)
         system_prompt: Optional system prompt
+        base_url: Optional custom base URL (overrides provider default)
 
     Returns:
         Generated text response
@@ -67,14 +74,71 @@ async def generate_remote(
     Raises:
         RemoteModelError: If API call fails
     """
-    if provider not in PROVIDERS:
+    
+    if provider == "minimax":
+        # MiniMax via Anthropic Client
+        try:
+            # Use environment variables for configuration (ANTHROPIC_API_KEY, ANTHROPIC_BASE_URL)
+            # If specific Minimax key is passed, use it, otherwise let client find it in env
+            client_kwargs = {}
+            if api_key:
+                client_kwargs["api_key"] = api_key
+            
+            # Do NOT hardcode base_url, let it read from ANTHROPIC_BASE_URL env var
+            # or fallback to default (which would be wrong for MiniMax but user has env var)
+            if os.getenv("ANTHROPIC_BASE_URL"):
+                client_kwargs["base_url"] = os.getenv("ANTHROPIC_BASE_URL")
+            
+            client = AsyncAnthropic(**client_kwargs)
+            
+            messages = [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": prompt
+                        }
+                    ]
+                }
+            ]
+            
+            message = await client.messages.create(
+                model=model_name,
+                max_tokens=max_tokens,
+                system=system_prompt,
+                messages=messages
+            )
+            
+            # Process response blocks (Thinking + Text)
+            response_text = ""
+            
+            # Log thinking process if available (for debugging/server logs)
+            # In a real app, we might want to return this to the user too
+            for block in message.content:
+                if block.type == "thinking":
+                    print(f"[MiniMax Thinking]: {block.thinking[:100]}...") # Log brief thinking
+                elif block.type == "text":
+                    response_text += block.text
+            
+            return response_text
+
+        except Exception as e:
+             raise RemoteModelError(f"MiniMax/Anthropic Error: {str(e)}")
+
+    
+    if provider not in PROVIDERS and not base_url:
         raise RemoteModelError(f"Provider {provider} not supported")
 
-    if not api_key:
+    if not api_key and not base_url:
         raise RemoteModelError(f"API key required for {provider}")
 
-    provider_config = PROVIDERS[provider]
-    base_url = provider_config["base_url"]
+    if base_url:
+        # Use custom base URL
+        pass
+    elif provider in PROVIDERS:
+        provider_config = PROVIDERS[provider]
+        base_url = provider_config["base_url"]
 
     # Prepare messages
     messages = []

@@ -8,12 +8,25 @@
   --foreground-rgb: 15, 23, 42;
   --background-start-rgb: 255, 255, 255;
   --background-end-rgb: 248, 250, 252;
+  
+  /* Base Palette */
   --lover-rose: #b0416b;
   --lover-petal: #f3ced8;
   --lover-butter: #f8edb7;
   --lover-sky: #7ec4ff;
   --lover-lilac: #cfd8ff;
   --lover-cloud: #e6e9ff;
+  --midnight-violet: #2e1065;
+  
+  /* Semantic Aliases for TSX Components */
+  --color-sunset-rose: var(--lover-rose);
+  --color-midnight-violet: var(--midnight-violet);
+  --color-taylor-glow: var(--lover-butter);
+  --color-text-secondary: #64748b;
+  --color-text-primary: #0f172a;
+  --color-border-soft: rgba(255, 255, 255, 0.6);
+  --color-border-strong: rgba(176, 65, 107, 0.3);
+  --color-background: #fff;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -21,6 +34,11 @@
     --foreground-rgb: 248, 250, 252;
     --background-start-rgb: 15, 23, 42;
     --background-end-rgb: 30, 41, 59;
+    
+    --color-text-primary: #f8fafc;
+    --color-text-secondary: #94a3b8;
+    --color-border-soft: rgba(255, 255, 255, 0.1);
+    --color-border-strong: rgba(176, 65, 107, 0.5);
   }
 }
 
@@ -34,6 +52,7 @@
     @apply antialiased;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     background: linear-gradient(140deg, var(--lover-petal), var(--lover-butter), var(--lover-lilac));
+    min-height: 100vh;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -54,37 +73,72 @@
 }
 
 @layer components {
+  /* Semantic Utility Classes */
+  .bg-panel {
+    @apply bg-white/80 backdrop-blur-md dark:bg-slate-800/80;
+  }
+  
+  .bg-card {
+    @apply bg-white dark:bg-slate-800;
+  }
+
+  .text-primary {
+    color: var(--color-text-primary);
+  }
+
+  .text-secondary {
+    color: var(--color-text-secondary);
+  }
+  
+  .text-accent {
+    color: var(--lover-rose);
+  }
+  
+  .text-inverse {
+    @apply text-white;
+  }
+
+  .border-soft {
+    border-color: var(--color-border-soft);
+  }
+  
+  .border-strong {
+    border-color: var(--color-border-strong);
+  }
+
   /* Button styles */
   .btn {
     @apply px-4 py-2 rounded-lg font-medium transition-all duration-200;
     @apply focus:outline-none focus:ring-2 focus:ring-offset-2;
+    @apply active:scale-95;
   }
 
   .btn-primary {
     background-color: var(--lover-rose);
     color: #fff;
     border: none;
-    box-shadow: 0 12px 30px rgba(176, 65, 107, 0.25);
+    box-shadow: 0 4px 14px 0 rgba(176, 65, 107, 0.39);
   }
 
   .btn-primary:hover {
     background-color: #c15681;
+    box-shadow: 0 6px 20px rgba(176, 65, 107, 0.23);
+    transform: translateY(-1px);
   }
-
-  .btn-primary:focus {
-    outline: 2px solid rgba(176, 65, 107, 0.3);
-    outline-offset: 2px;
+  
+  .btn-primary:disabled {
+    @apply opacity-50 cursor-not-allowed transform-none shadow-none;
   }
 
   .btn-secondary {
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.8);
     color: #1f1235;
-    border: 1px solid rgba(176, 65, 107, 0.25);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(176, 65, 107, 0.2);
   }
 
   .btn-secondary:hover {
     background: #ffffff;
+    border-color: var(--lover-rose);
   }
 
   .btn-outline {
@@ -99,20 +153,20 @@
 
   /* Card styles */
   .card {
-    @apply bg-white dark:bg-slate-800 rounded-xl shadow-md;
-    @apply border border-slate-200 dark:border-slate-700;
+    @apply bg-white dark:bg-slate-800 rounded-xl shadow-sm;
+    @apply border border-slate-100 dark:border-slate-700;
     @apply transition-all duration-200;
   }
 
   .card-hover {
-    @apply hover:shadow-xl hover:-translate-y-1;
+    @apply hover:shadow-lg hover:-translate-y-1;
   }
 
   /* Input styles */
   .input {
     @apply w-full px-4 py-2.5 rounded-lg;
     @apply bg-white dark:bg-slate-800;
-    @apply border border-slate-300 dark:border-slate-600;
+    @apply border border-slate-200 dark:border-slate-600;
     @apply text-slate-900 dark:text-slate-100;
     @apply placeholder:text-slate-400 dark:placeholder:text-slate-500;
     @apply focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
@@ -125,7 +179,7 @@
   }
 
   .badge-primary {
-    background-color: rgba(176, 65, 107, 0.12);
+    background-color: rgba(176, 65, 107, 0.1);
     color: var(--lover-rose);
   }
 
@@ -145,46 +199,64 @@
     font-feature-settings: 'kern';
     font-variant-numeric: lining-nums tabular-nums;
   }
-
-  .text-lover {
-    color: var(--lover-rose);
+  
+  .animate-in {
+    animation-duration: 0.3s;
+    animation-fill-mode: both;
   }
-
-  .hover-text-lover:hover {
-    color: var(--lover-rose);
+  
+  .fade-in {
+    animation-name: fadeIn;
+  }
+  
+  .slide-in-from-right-4 {
+    --tw-enter-translate-x: 1rem;
+    animation-name: slideInFromRight;
+  }
+  
+  .slide-in-from-top-4 {
+    --tw-enter-translate-y: -1rem;
+    animation-name: slideInFromTop;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  @keyframes slideInFromRight {
+    from { transform: translateX(var(--tw-enter-translate-x)); }
+    to { transform: translateX(0); }
+  }
+  
+  @keyframes slideInFromTop {
+    from { transform: translateY(var(--tw-enter-translate-y)); }
+    to { transform: translateY(0); }
   }
 }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-slate-100 dark:bg-slate-800;
-  border-radius: 5px;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-slate-300 dark:bg-slate-600;
-  border-radius: 5px;
-  border: 2px solid transparent;
-  background-clip: content-box;
+  @apply bg-slate-300/50 dark:bg-slate-600/50;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-slate-400 dark:bg-slate-500;
+  @apply bg-slate-400/70 dark:bg-slate-500/70;
 }
 
 /* Selection styles */
 ::selection {
-  background: rgba(176, 65, 107, 0.25);
-  color: #1f1235;
-}
-
-::-moz-selection {
-  background: rgba(176, 65, 107, 0.25);
+  background: rgba(176, 65, 107, 0.2);
   color: #1f1235;
 }
 
@@ -203,14 +275,9 @@
   animation: shimmer 2s infinite;
   background: linear-gradient(
     to right,
-    #e2e8f0 0%,
-    #f1f5f9 50%,
-    #e2e8f0 100%
+    rgba(255,255,255,0) 0%,
+    rgba(255,255,255,0.5) 50%,
+    rgba(255,255,255,0) 100%
   );
   background-size: 1000px 100%;
-}
-
-/* Smooth transitions */
-* {
-  @apply transition-colors duration-200;
 }

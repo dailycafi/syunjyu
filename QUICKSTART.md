@@ -46,8 +46,8 @@ npm run dev
 ```
 
 This starts:
-- ✓ Python backend (port 8000)
-- ✓ Next.js frontend (port 3000)
+- ✓ Python backend (port 8500)
+- ✓ Next.js frontend (port 3500)
 - ✓ Tauri desktop app
 
 **Option B: Web Version Only**
@@ -64,7 +64,7 @@ cd web
 npm run dev
 ```
 
-Visit: http://localhost:3000
+Visit: http://localhost:3500
 
 ## First Steps
 
@@ -108,8 +108,8 @@ Visit: http://localhost:3000
 
 ### Backend won't start
 ```bash
-# Check if port 8000 is in use
-lsof -i :8000
+# Check if port 8500 is in use
+lsof -i :8500
 
 # Install Python dependencies
 cd python-backend
