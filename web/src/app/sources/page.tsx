@@ -12,6 +12,7 @@ import {
   type CreateSourcePayload,
 } from '@/lib/api'
 import { SOURCE_CATEGORIES, type SourceCategoryKey, type SourceCategoryMeta } from '@/lib/sourceCategories'
+import { useToast } from '@/components/Toast'
 
 type CategoryFilter = SourceCategoryKey | 'all'
 
@@ -235,6 +236,7 @@ const getCategoryIcon = (id: SourceCategoryKey) => {
 }
 
 export default function SourceManagementPage() {
+  const { showToast } = useToast()
   const [sources, setSources] = useState<NewsSourceRecord[]>([])
   const [query, setQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('all')
@@ -385,7 +387,7 @@ export default function SourceManagementPage() {
       setSources(prev => prev.filter(s => s.id !== id))
     } catch (error) {
       console.error('Failed to delete source', error)
-      alert('Failed to delete source')
+      showToast('Failed to delete source', 'error')
     } finally {
       setDeletingId(null)
       setPendingDeleteId(null)
@@ -418,7 +420,7 @@ export default function SourceManagementPage() {
         setNewSource({ name: '', url: '', rss_url: '', category: 'media' })
       }
     } catch (error) {
-      alert('Failed to add source: ' + String(error))
+      showToast('Failed to add source: ' + String(error), 'error')
     } finally {
       setIsAdding(false)
     }

@@ -10,6 +10,7 @@ import {
   getPhrases,
   getAllPhraseTexts,
   savePhrase,
+  deletePhrase,
   refetchNews,
   generateTTS,
   type AnalysisScope,
@@ -21,8 +22,10 @@ import {
   type VocabularyItem,
 } from '@/lib/api'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { format } from 'date-fns'
 import { getNewsCategoryLabel } from '@/lib/newsCategories'
+import { useToast } from '@/components/Toast'
 import { useUserPreferences } from '@/lib/preferences'
 import QuizView from '@/components/QuizView'
 
@@ -53,7 +56,7 @@ const NODE_VARIANTS: Record<
   { label: string; bg: string; accent: string; ring: string; glow: string; text: string; subtext: string; badge_bg: string }
 > = {
   conclusion: {
-    label: '核心结论',
+    label: 'Key Takeaway',
     bg: 'bg-white',
     accent: 'text-purple-700',
     ring: 'ring-purple-200',
@@ -63,7 +66,7 @@ const NODE_VARIANTS: Record<
     badge_bg: 'bg-purple-50'
   },
   argument: {
-    label: '核心论点',
+    label: 'Core Argument',
     bg: 'bg-white',
     accent: 'text-blue-700',
     ring: 'ring-blue-200',
@@ -73,7 +76,7 @@ const NODE_VARIANTS: Record<
     badge_bg: 'bg-blue-50'
   },
   evidence: {
-    label: '关键证据',
+    label: 'Key Evidence',
     bg: 'bg-white',
     accent: 'text-emerald-700',
     ring: 'ring-emerald-200',
@@ -83,7 +86,7 @@ const NODE_VARIANTS: Record<
     badge_bg: 'bg-emerald-50'
   },
   logic: {
-    label: '逻辑推演',
+    label: 'Logical Deduction',
     bg: 'bg-white',
     accent: 'text-amber-700',
     ring: 'ring-amber-200',
@@ -93,7 +96,7 @@ const NODE_VARIANTS: Record<
     badge_bg: 'bg-amber-50'
   },
   insight: {
-    label: '深度洞察',
+    label: 'Deep Insight',
     bg: 'bg-white',
     accent: 'text-indigo-700',
     ring: 'ring-indigo-200',
@@ -103,7 +106,7 @@ const NODE_VARIANTS: Record<
     badge_bg: 'bg-indigo-50'
   },
   impact: {
-    label: '潜在影响',
+    label: 'Potential Impact',
     bg: 'bg-white',
     accent: 'text-rose-700',
     ring: 'ring-rose-200',
@@ -113,7 +116,7 @@ const NODE_VARIANTS: Record<
     badge_bg: 'bg-rose-50'
   },
   default: {
-    label: '节点',
+    label: 'Node',
     bg: 'bg-white',
     accent: 'text-slate-700',
     ring: 'ring-slate-200',
@@ -163,7 +166,7 @@ const StructureConclusion = ({ takeaways }: { takeaways?: string[] }) => {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-purple-100 pb-6 mb-6">
         <div>
           <p className="text-xs font-bold tracking-[0.2em] text-purple-600 uppercase">Key Takeaways</p>
-          <h4 className="mt-2 text-2xl font-bold text-slate-900">文章输出的战略洞察</h4>
+          <h4 className="mt-2 text-2xl font-bold text-slate-900">Strategic Insights</h4>
         </div>
         <div className="flex gap-3">
           <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-medium text-purple-700">AI Synthesis</span>
@@ -243,12 +246,36 @@ const renderHighlightedContent = (
   interface HighlightRange {
     start: number
     end: number
-    type: 'local' | 'global' | 'ai' | 'playback'
+    type: 'local' | 'global' | 'ai' | 'playback' | 'markdown_table'
     payload?: any
   }
 
   const ranges: HighlightRange[] = []
   const textLower = text.toLowerCase()
+
+  // 0. Markdown Tables (Highest Priority - Structural)
+  // Detect tables to preserve their structure and render as Markdown
+  // Regex to match GFM tables: Header row, Separator row, optional Data rows
+  // Adjusted to allow rows that don't strictly start/end with | but contain |
+  const TABLE_REGEX = /(?:^|\n)((?:\|[^\n]+\|\r?\n)+\|[-:|\s]+\|(?:\r?\n.*\|.*)*)/g
+  let tableMatch
+  // Reset lastIndex just in case
+  TABLE_REGEX.lastIndex = 0
+  
+  while ((tableMatch = TABLE_REGEX.exec(text)) !== null) {
+      const tableText = tableMatch[1]
+      // Calculate true start index (accounting for potential newline in group 0 but not group 1)
+      const fullMatch = tableMatch[0]
+      const offset = fullMatch.indexOf(tableText)
+      const matchIndex = tableMatch.index + offset
+      
+      ranges.push({
+          start: matchIndex,
+          end: matchIndex + tableText.length,
+          type: 'markdown_table',
+          payload: tableText
+      })
+  }
 
   // 0. Playback Highlight (highest priority for visibility, but maybe overlays others?)
   // Actually we want playback to be a distinct style, maybe background color change that composites
@@ -437,8 +464,8 @@ const renderHighlightedContent = (
   // Text is long, maybe expensive.
   // Let's just filter naively: iterate sorted by priority, keep if no overlap.
   
-  // Sort by priority (Playback=-1, Local=0, Global=1, AI=2) then length (desc) then start (asc)
-  const getPriority = (t: string) => (t === 'playback' ? -1 : t === 'local' ? 0 : t === 'global' ? 1 : 2)
+  // Sort by priority (Table=-2, Playback=-1, Local=0, Global=1, AI=2) then length (desc) then start (asc)
+  const getPriority = (t: string) => (t === 'markdown_table' ? -2 : t === 'playback' ? -1 : t === 'local' ? 0 : t === 'global' ? 1 : 2)
   
   // We want to highlight ALL occurrences, but no overlaps.
   // If "Machine Learning" and "Learning" both exist:
@@ -480,6 +507,28 @@ const renderHighlightedContent = (
         segments.push(text.slice(cursor, r.start))
     }
 
+    if (r.type === 'markdown_table') {
+        segments.push(
+            <div key={`table-${r.start}`} className="my-8 overflow-x-auto not-prose rounded-xl border border-slate-200 shadow-sm bg-white">
+                <ReactMarkdown 
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                        table: ({node, ...props}) => <table className="min-w-full border-collapse" {...props} />,
+                        thead: ({node, ...props}) => <thead className="bg-slate-50 border-b-2 border-slate-200" {...props} />,
+                        th: ({node, ...props}) => <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider border-r border-slate-200 last:border-r-0" {...props} />,
+                        tbody: ({node, ...props}) => <tbody className="bg-white divide-y divide-slate-200" {...props} />,
+                        tr: ({node, ...props}) => <tr className="hover:bg-slate-50/80 transition-colors group" {...props} />,
+                        td: ({node, ...props}) => <td className="px-4 py-3 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap border-r border-slate-200 last:border-r-0" {...props} />,
+                    }}
+                >
+                    {r.payload}
+                </ReactMarkdown>
+            </div>
+        )
+        cursor = r.end
+        return
+    }
+
     const highlightText = text.slice(r.start, r.end)
     
     // Style based on type
@@ -514,7 +563,7 @@ const renderHighlightedContent = (
         if (!shouldShow) return // Skip rendering this mark
         
         style = { backgroundColor: r.payload.color || VOCAB_HIGHLIGHT_COLOR }
-        title = "已收藏: " + r.payload.note || ""
+        title = "Saved: " + r.payload.note || ""
         // Add ID for anchoring
         // We can't easily add ID to mark directly via React array unless we use specific prop
         // But we can use a span wrapper or just rely on scrolling logic.
@@ -559,18 +608,18 @@ const renderHighlightedContent = (
         // Global (from other articles) -> maybe dashed underline or lighter yellow
         style = { backgroundColor: '#fef9c3', borderBottom: '2px solid #eab308' } // yellow-100 bg, yellow-500 underline
         className += "hover:bg-yellow-200"
-        title = "生词本中的词汇"
+        title = "Vocabulary from My Words"
     } else if (r.type === 'ai') {
         if (isAiMode) {
             // AI/Tech Mode: Solid underline, cool color (Indigo/Blue)
             style = { borderBottom: '2px solid #818cf8', backgroundColor: 'rgba(99, 102, 241, 0.1)' }
             className += "hover:bg-indigo-100"
-            title = "AI 核心术语: " + r.payload.definition
+            title = "AI Core Term: " + r.payload.definition
         } else {
             // English Learner: Dashed underline, warm color (Amber)
             style = { borderBottom: '2px dashed #fbbf24', backgroundColor: 'rgba(253, 230, 138, 0.3)' }
             className += "hover:bg-yellow-100"
-            title = "重点词汇: " + r.payload.definition
+            title = "Key Vocabulary: " + r.payload.definition
         }
         
         // Skip highlighting if types don't match mode logic (but we want to show them if they exist?)
@@ -615,10 +664,10 @@ const renderHighlightedContent = (
   return segments
 }
 
-const VocabularyCard = ({ item, onIgnore, onSave, isAiMode, isSaved: initialSaved = false, onUnsave }: { item: VocabularyItem, onIgnore: (term: string) => void, onSave: (item: VocabularyItem) => Promise<void>, isAiMode: boolean, isSaved?: boolean, onUnsave?: (item: VocabularyItem) => Promise<void> }) => {
+const VocabularyCard = ({ item, onIgnore, onSave, isAiMode, isSaved: initialSaved = false, onUnsave, onShowFeedback }: { item: VocabularyItem, onIgnore: (term: string) => void, onSave: (item: VocabularyItem) => Promise<void>, isAiMode: boolean, isSaved?: boolean, onUnsave?: (item: VocabularyItem) => Promise<void>, onShowFeedback: (sentence: string, feedback: string, score?: string) => void }) => {
+  const { showToast } = useToast()
   const [sentence, setSentence] = useState('')
   const [checking, setChecking] = useState(false)
-  const [feedback, setFeedback] = useState<string | null>(null)
   const [showInput, setShowInput] = useState(false)
   const [isSaved, setIsSaved] = useState(initialSaved)
 
@@ -641,9 +690,10 @@ const VocabularyCard = ({ item, onIgnore, onSave, isAiMode, isSaved: initialSave
     setChecking(true)
     try {
         const res = await checkSentence(item.term, sentence)
-        setFeedback(res.feedback)
+        onShowFeedback(sentence, res.feedback, res.score)
     } catch (e) {
         console.error(e)
+        showToast('Check failed, please try again', 'error')
     } finally {
         setChecking(false)
     }
@@ -695,7 +745,7 @@ const VocabularyCard = ({ item, onIgnore, onSave, isAiMode, isSaved: initialSave
                     ? 'bg-green-100 text-green-600 hover:bg-red-100 hover:text-red-600' 
                     : buttonClass
                 }`}
-                title={isSaved ? "已收藏 (点击取消)" : "收藏到生词本"}
+                title={isSaved ? "Saved (Click to unsave)" : "Save to Vocabulary"}
               >
                 {isSaved ? (
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -739,7 +789,7 @@ const VocabularyCard = ({ item, onIgnore, onSave, isAiMode, isSaved: initialSave
                      onClick={() => setShowInput(true)}
                      className="text-xs font-semibold text-amber-600 hover:text-amber-700 flex items-center gap-1 uppercase tracking-wide"
                    >
-                     <span className="text-lg">+</span> 造句练习 (Make a Sentence)
+                     <span className="text-lg">+</span> Sentence Practice (Make a Sentence)
                    </button>
                ) : (
                    <div className="bg-white p-4 rounded-lg border border-amber-100 shadow-sm animate-in fade-in slide-in-from-top-2">
@@ -761,13 +811,6 @@ const VocabularyCard = ({ item, onIgnore, onSave, isAiMode, isSaved: initialSave
                                {checking ? 'Analyzing...' : 'Check'}
                            </button>
                        </div>
-                       
-                       {feedback && (
-                           <div className="p-3 bg-amber-50 rounded-lg border border-amber-100 text-sm text-amber-900">
-                               <div className="font-bold mb-1 text-amber-700 text-xs uppercase">AI Feedback</div>
-                               {feedback}
-                           </div>
-                       )}
                    </div>
                )}
            </div>
@@ -784,9 +827,18 @@ interface TermPopupState {
   left: number
 }
 
+interface FeedbackState {
+  sentence: string
+  feedback: string
+  score?: string
+}
+
 export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientProps) {
   const router = useRouter()
+  const { showToast } = useToast()
   const { isEnglishLearner, mode } = useUserPreferences()
+  
+  const [feedbackState, setFeedbackState] = useState<FeedbackState | null>(null)
   
   const [news, setNews] = useState<NewsRecord | null>(null)
   const [loading, setLoading] = useState(true)
@@ -954,7 +1006,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
         setIsPlaying(true) 
     } catch (error) {
         console.error("TTS Generation failed", error)
-        alert("语音生成失败，请稍后重试")
+        showToast("Failed to generate audio, please try again later", 'error')
     } finally {
         setIsGeneratingAudio(false)
     }
@@ -1061,7 +1113,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
       }
     } catch (error) {
       console.error('Failed to analyze article:', error)
-      const message = error instanceof Error ? error.message : 'AI 分析失败，请稍后重试'
+      const message = error instanceof Error ? error.message : 'AI analysis failed, please try again later'
       setAnalysisErrors((prev) => ({ ...prev, [scope]: message }))
     } finally {
       setLoadingScopes(prev => ({ ...prev, [scope]: false }))
@@ -1069,7 +1121,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
   }
 
   const handleRefetch = async () => {
-    if (!confirm('确定要重新抓取这篇文章吗？这将覆盖当前内容。')) return
+    if (!confirm('Are you sure you want to re-fetch this article? This will overwrite current content.')) return
     
     setRefetching(true)
     try {
@@ -1080,7 +1132,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
         }
     } catch (error) {
         console.error('Refetch failed:', error)
-        alert('重新抓取失败，请稍后重试')
+        showToast('Re-fetch failed, please try again later', 'error')
     } finally {
         setRefetching(false)
     }
@@ -1193,7 +1245,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
       }
     } catch (error) {
       console.error('Failed to explain text:', error)
-      alert('解释失败，请稍后重试')
+      showToast('Explanation failed, please try again later', 'error')
       setExplaining(false)
     }
   }
@@ -1237,7 +1289,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
       await loadPhrases()
     } catch (error) {
       console.error('Failed to save phrase:', error)
-      alert('保存失败')
+      showToast('Save failed', 'error')
     }
   }
 
@@ -1262,7 +1314,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
         await loadPhrases()
     } catch (error) {
         console.error('Failed to save vocabulary item:', error)
-        alert('保存失败')
+        showToast('Save failed', 'error')
     }
   }
 
@@ -1277,7 +1329,18 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
           }
       } catch (error) {
           console.error('Failed to unsave:', error)
-          alert('取消收藏失败')
+          showToast('Failed to unsave', 'error')
+    }
+  }
+
+  const handleDeletePhrase = async (phraseId: number) => {
+    if (!confirm('Are you sure you want to remove this from your collection?')) return
+    try {
+      await deletePhrase(phraseId)
+      await loadPhrases()
+    } catch (error) {
+      console.error('Failed to delete phrase:', error)
+      showToast('Failed to delete phrase', 'error')
     }
   }
 
@@ -1319,7 +1382,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
       <div className="container mx-auto px-6 py-8">
         <div className="text-center">
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent"></div>
-          <p className="mt-4 text-gray-600">加载文章中...</p>
+          <p className="mt-4 text-gray-600">Loading article...</p>
         </div>
       </div>
     )
@@ -1328,7 +1391,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
   if (!news) {
     return (
       <div className="container mx-auto px-6 py-8">
-        <p className="text-gray-600">未找到文章</p>
+        <p className="text-gray-600">Article not found</p>
       </div>
     )
   }
@@ -1348,7 +1411,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
           <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
-          返回列表
+          Back to List
         </button>
       </div>
 
@@ -1380,7 +1443,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
                 >
-                    文章正文
+                    Article
                 </button>
                 <button
                     onClick={() => {
@@ -1393,7 +1456,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
                 >
-                    结构梳理
+                    Structure
                 </button>
                 <button
                     onClick={() => {
@@ -1406,7 +1469,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
                 >
-                    {isEnglishLearner ? '重点词汇' : 'AI 核心术语'}
+                    {isEnglishLearner ? 'Vocabulary' : 'Core Terms'}
                 </button>
                 <button
                     onClick={() => setActiveTab('quiz')}
@@ -1441,14 +1504,14 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                                         <div className="flex justify-between items-start mb-4 relative z-10">
                                             <h3 className="text-blue-900 font-bold text-lg flex items-center gap-2">
                                                 <span className="w-1 h-5 bg-blue-500 rounded-full block"></span>
-                                                AI 智能摘要
+                                                AI Smart Summary
                                             </h3>
                                             <button 
                                                 onClick={() => handleAnalyze('summary')}
                                                 disabled={loadingScopes.summary}
                                                 className="text-blue-600 hover:text-blue-700 text-xs font-medium bg-blue-100 hover:bg-blue-200 px-3 py-1 rounded-full transition disabled:opacity-50"
                                             >
-                                                {analysisData.summary ? '重新生成' : '生成摘要'}
+                                                {analysisData.summary ? 'Regenerate' : 'Generate Summary'}
                                             </button>
                                         </div>
 
@@ -1462,7 +1525,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
                                         <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
                                     </span>
-                                    AI 正在阅读全文并生成摘要，请稍候...
+                                    AI is reading and generating summary, please wait...
                                 </div>
                                 )}
                         </div>
@@ -1474,8 +1537,8 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                                 <div className="flex items-center gap-3">
                                     <span className="bg-amber-200 text-amber-800 p-2 rounded-lg">📚</span>
                                     <div>
-                                        <p className="text-amber-900 font-bold text-sm">发现 {analysisData.vocabulary.length} 个重点词汇</p>
-                                        <p className="text-amber-700 text-xs">点击查看完整词汇表</p>
+                                        <p className="text-amber-900 font-bold text-sm">Found {analysisData.vocabulary.length} key vocabularies</p>
+                                        <p className="text-amber-700 text-xs">Click to view full list</p>
                                     </div>
                                 </div>
                                 <span className="text-amber-500">→</span>
@@ -1488,8 +1551,8 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                                 <div className="flex items-center gap-3">
                                     <span className="bg-indigo-200 text-indigo-800 p-2 rounded-lg">🧠</span>
                                     <div>
-                                        <p className="text-indigo-900 font-bold text-sm">提取到 {analysisData.vocabulary.length} 个 AI 核心术语</p>
-                                        <p className="text-indigo-700 text-xs">点击查看术语解析</p>
+                                        <p className="text-indigo-900 font-bold text-sm">Extracted {analysisData.vocabulary.length} core AI terms</p>
+                                        <p className="text-indigo-700 text-xs">Click to view analysis</p>
                                     </div>
                                 </div>
                                 <span className="text-indigo-500">→</span>
@@ -1518,7 +1581,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                   {isGeneratingAudio ? (
                     <>
                         <span className="animate-spin h-3 w-3 border-2 border-current border-r-transparent rounded-full"></span>
-                        生成语音...
+                        Generating...
                     </>
                   ) : isPlaying ? (
                     <>
@@ -1526,7 +1589,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
                           <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
                         </span>
-                        停止朗读
+                        Stop Reading
                     </>
                   ) : (
                     <>
@@ -1535,7 +1598,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                             <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
                             <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
                         </svg>
-                        朗读全文
+                        Read Aloud
                     </>
                   )}
                 </button>
@@ -1548,7 +1611,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                   {refetching ? (
                     <>
                         <span className="animate-spin h-3 w-3 border-2 border-gray-500 border-r-transparent rounded-full"></span>
-                        抓取中...
+                        Fetching...
                     </>
                   ) : (
                     <>
@@ -1558,7 +1621,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                             <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
                             <path d="M16 16h5v5" />
                         </svg>
-                        重新抓取
+                        Re-fetch
                     </>
                   )}
                 </button>
@@ -1568,7 +1631,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                   rel="noopener noreferrer"
                   className="btn btn-secondary px-4 py-2 rounded-lg text-sm"
                 >
-                  查看原文 ↗
+                  View Original ↗
                 </a>
             </div>
 
@@ -1583,7 +1646,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                             : 'bg-indigo-50/90 text-indigo-700 border-indigo-100'
                         }`}>
                             <div className={`w-2 h-2 rounded-full animate-ping ${isEnglishLearner ? 'bg-amber-500' : 'bg-indigo-500'}`} />
-                            {isEnglishLearner ? '正在挖掘重点词汇...' : '正在提取核心术语...'}
+                            {isEnglishLearner ? 'Mining key vocabulary...' : 'Extracting core terms...'}
                         </div>
                     </div>
                 )}
@@ -1592,7 +1655,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                     <>{highlightedContent}</>
                 ) : (
                     <div className="text-center py-12">
-                        <p className="text-gray-500 mb-4">未获取到全文内容，仅显示摘要。</p>
+                        <p className="text-gray-500 mb-4">Full text not available, showing summary only.</p>
                         <p className="font-medium text-gray-700 italic bg-gray-50 p-4 rounded-lg">{news.summary}</p>
                     </div>
                 )}
@@ -1630,7 +1693,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
                             </svg>
-                            收藏到{isEnglishLearner ? '生词本' : '术语库'}
+                            Save to {isEnglishLearner ? 'Vocabulary' : 'Terminology'}
                         </button>
                     </div>
                     
@@ -1648,7 +1711,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                     <button
                       onClick={handleCopySelection}
                       className="p-2 hover:bg-gray-50 rounded text-gray-600 hover:text-gray-900"
-                      title="复制"
+                      title="Copy"
                     >
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                     </button>
@@ -1657,14 +1720,14 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                       onClick={handleExplainSelection}
                       className="px-3 py-1 hover:bg-blue-50 rounded text-sm font-medium text-blue-600 flex items-center gap-1"
                     >
-                      <span className="text-lg">💡</span> 解释
+                      <span className="text-lg">💡</span> Explain
                     </button>
                     <div className="w-px bg-gray-200 my-1"></div>
                     <button
                       onClick={openSaveDialog}
                       className="px-3 py-1 hover:bg-yellow-50 rounded text-sm font-medium text-amber-600 flex items-center gap-1"
                     >
-                      <span className="text-lg">🔖</span> 收藏
+                      <span className="text-lg">🔖</span> Save
                     </button>
                     
                     {/* Arrow */}
@@ -1690,13 +1753,13 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                   </button>
                     
                     <h3 className="text-xl font-bold mb-4 text-gray-900 flex items-center gap-2">
-                      💡 智能解析
+                      💡 Smart Analysis
                     </h3>
                     
                     {explaining && !explanation ? (
                         <div className="py-12 text-center space-y-4">
                             <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-r-transparent"></div>
-                            <p className="text-gray-500 text-sm animate-pulse">AI 正在思考中，请稍候...</p>
+                            <p className="text-gray-500 text-sm animate-pulse">AI is thinking, please wait...</p>
                 </div>
                     ) : (
                         <div className="prose prose-sm max-w-none text-gray-700 leading-relaxed prose-headings:text-gray-900 prose-strong:text-blue-700">
@@ -1714,9 +1777,9 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                         <div className="flex flex-col gap-4 rounded-3xl border border-purple-200/40 bg-white p-6 shadow-sm ring-1 ring-purple-100/40 md:flex-row md:items-center md:justify-between">
                             <div>
                                 <p className="text-xs font-semibold tracking-[0.4em] text-purple-500">STRUCTURE</p>
-                                <h3 className="mt-2 text-2xl font-bold text-slate-900">逻辑脉络 · 思维导图</h3>
+                                <h3 className="mt-2 text-2xl font-bold text-slate-900">Logic Flow · Mind Map</h3>
                                 <p className="text-sm text-slate-500">
-                                    自动识别文章中的核心论点、证据链路与推理路径，生成科技感满满的可视化图谱。
+                                    Automatically identify core arguments, evidence chains, and reasoning paths to generate a visualized knowledge graph.
                                 </p>
                             </div>
                             <button
@@ -1727,12 +1790,12 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                                 {loadingScopes.structure ? (
                                     <>
                                         <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
-                                        分析中...
+                                        Analyzing...
                                     </>
                                 ) : hasStructureGraph ? (
-                                    '重新梳理'
+                                    'Re-analyze'
                                 ) : (
-                                    '开始梳理'
+                                    'Start Analysis'
                                 )}
                             </button>
                         </div>
@@ -1762,9 +1825,9 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                                         <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
                                     </svg>
                                 </div>
-                                <h4 className="text-gray-900 font-medium mb-2">准备分析文章结构</h4>
+                                <h4 className="text-gray-900 font-medium mb-2">Ready to Analyze Structure</h4>
                                 <p className="text-gray-500 text-sm max-w-md mx-auto">
-                                    AI 将为您拆解文章的论证逻辑、核心观点以及支撑证据，生成可视化的思维导图。
+                                    AI will deconstruct the argumentation logic, core viewpoints, and supporting evidence to generate a visualized mind map.
                                 </p>
                             </div>
                         )}
@@ -1778,7 +1841,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                         <section>
                             <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
                                 <span className={`w-1 h-6 rounded-full block ${isEnglishLearner ? 'bg-amber-500' : 'bg-indigo-500'}`}></span>
-                                我的收藏 ({
+                                My Collection ({
                                     isEnglishLearner 
                                     ? phrases.filter(p => !p.color?.includes('e0e7ff') && p.type !== 'terminology').length
                                     : phrases.filter(p => p.color?.includes('e0e7ff') || p.type === 'terminology').length
@@ -1797,9 +1860,23 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                                                     <h4 className="font-bold text-indigo-900 text-lg px-2 py-0.5 rounded inline-block">
                                                     {phrase.text}
                                                 </h4>
+                                                <div className="flex items-center gap-2">
                                                     <span className="text-xs text-indigo-300/80">
-                                                    {format(new Date(phrase.created_at), 'MM/dd')}
-                                                </span>
+                                                        {format(new Date(phrase.created_at), 'MM/dd')}
+                                                    </span>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            handleDeletePhrase(phrase.id)
+                                                        }}
+                                                        className="p-1 rounded-full hover:bg-indigo-100 text-indigo-300 hover:text-red-500 transition-colors"
+                                                        title="Remove"
+                                                    >
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                            <path d="M18 6L6 18M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
                                             </div>
                                             {phrase.note && (
                                                     <div className="text-indigo-800/80 text-sm mb-3 bg-white/60 p-2 rounded border border-indigo-50 prose prose-sm max-w-none">
@@ -1829,9 +1906,23 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                                                     <h4 className="font-bold text-amber-900 text-lg px-2 py-0.5 rounded inline-block">
                                                         {phrase.text}
                                                     </h4>
-                                                    <span className="text-xs text-amber-300/80">
-                                                        {format(new Date(phrase.created_at), 'MM/dd')}
-                                                    </span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-xs text-amber-300/80">
+                                                            {format(new Date(phrase.created_at), 'MM/dd')}
+                                                        </span>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                handleDeletePhrase(phrase.id)
+                                                            }}
+                                                            className="p-1 rounded-full hover:bg-amber-100 text-amber-300 hover:text-red-500 transition-colors"
+                                                            title="Remove"
+                                                        >
+                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                                <path d="M18 6L6 18M6 6l12 12" />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
                                                 </div>
                                                 {phrase.note && (
                                                     <div className="text-amber-800/80 text-sm mb-3 bg-white/60 p-2 rounded border border-amber-50 prose prose-sm max-w-none">
@@ -1855,7 +1946,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                                 : phrases.filter(p => p.color?.includes('e0e7ff') || p.type === 'terminology').length === 0
                             ) && (
                                 <div className="text-center py-8 bg-gray-50 rounded-xl border border-dashed border-gray-200 text-sm text-gray-500">
-                                    {isEnglishLearner ? '暂无收藏的生词' : '暂无收藏的术语'}
+                                    {isEnglishLearner ? 'No saved vocabulary' : 'No saved terms'}
                                 </div>
                             )}
                         </section>
@@ -1867,7 +1958,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                             <div className="flex items-center justify-between mb-6">
                                 <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                                     <span className={`w-1 h-6 rounded-full block ${isEnglishLearner ? 'bg-amber-500' : 'bg-indigo-500'}`}></span>
-                                    {isEnglishLearner ? 'AI 重点词汇推荐' : 'AI 核心术语解析'}
+                                    {isEnglishLearner ? 'AI Vocabulary Recommendations' : 'AI Core Term Analysis'}
                                 </h3>
                                 <button
                                     onClick={() => handleAnalyze('vocabulary')}
@@ -1878,7 +1969,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                                         : 'bg-indigo-100 text-indigo-800 hover:bg-indigo-200'
                                     }`}
                                 >
-                                    {loadingScopes.vocabulary ? '挖掘中...' : (analysisData.vocabulary ? '重新挖掘' : (isEnglishLearner ? '挖掘重点词汇' : '提取核心术语'))}
+                                    {loadingScopes.vocabulary ? 'Mining...' : (analysisData.vocabulary ? 'Re-mine' : (isEnglishLearner ? 'Mine Vocabulary' : 'Extract Terms'))}
                                 </button>
                             </div>
 
@@ -1907,6 +1998,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                                                 onUnsave={handleUnsaveVocabularyItem}
                                                 isAiMode={!isEnglishLearner}
                                                 isSaved={isAlreadySaved}
+                                                onShowFeedback={(sentence, feedback, score) => setFeedbackState({ sentence, feedback, score })}
                                             />
                                           )
                                       })}
@@ -1929,7 +2021,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                                 </div>
                             ) : (
                                 <div className="text-center py-12 bg-amber-50/30 rounded-xl border border-dashed border-amber-100">
-                                    <p className="text-gray-500 text-sm">点击挖掘按钮，让 AI 为你提取本文的高阶表达</p>
+                                    <p className="text-gray-500 text-sm">Click the mine button to let AI extract advanced expressions</p>
                                 </div>
                             )}
                         </section>
@@ -1943,38 +2035,95 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
         </div>
       </div>
 
+      {/* AI Feedback Modal */}
+      {feedbackState && (
+           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setFeedbackState(null)}>
+               <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                   <button 
+                       onClick={() => setFeedbackState(null)}
+                       className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors"
+                   >
+                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                           <path d="M18 6L6 18M6 6l12 12" />
+                       </svg>
+                   </button>
+
+                   <div className="flex items-center gap-3 mb-5 pr-10">
+                       <div className={`w-10 h-10 rounded-full flex items-center justify-center ${!isEnglishLearner ? 'bg-indigo-100 text-indigo-600' : 'bg-amber-100 text-amber-600'}`}>
+                           <span className="text-xl">📝</span>
+                       </div>
+                       <div>
+                           <h3 className="text-lg font-bold text-gray-900">AI Feedback</h3>
+                           <p className="text-xs text-gray-500">Review for your sentence</p>
+                       </div>
+                       {feedbackState.score && (
+                           <div className={`ml-auto flex flex-col items-center justify-center w-14 h-14 rounded-2xl border-4 ${
+                                ['A', 'S'].includes(feedbackState.score) ? 'border-green-100 bg-green-50 text-green-600' :
+                                feedbackState.score === 'B' ? 'border-blue-100 bg-blue-50 text-blue-600' :
+                                feedbackState.score === 'C' ? 'border-yellow-100 bg-yellow-50 text-yellow-600' :
+                                'border-red-100 bg-red-50 text-red-600'
+                           }`}>
+                               <span className="text-2xl font-black leading-none">{feedbackState.score}</span>
+                           </div>
+                       )}
+                   </div>
+
+                   <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-6">
+                       <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Your Sentence</div>
+                       <p className="italic mb-4 text-gray-900 font-medium">"{feedbackState.sentence}"</p>
+                       
+                       <div className={`text-xs font-bold uppercase tracking-wider mb-2 ${!isEnglishLearner ? 'text-indigo-600' : 'text-amber-600'}`}>AI Comments</div>
+                       <p className="text-gray-700 leading-relaxed text-sm">{feedbackState.feedback}</p>
+                   </div>
+
+                   <div className="flex justify-end">
+                       <button 
+                           onClick={() => setFeedbackState(null)}
+                           className={`px-5 py-2.5 text-white rounded-xl font-bold transition-colors shadow-lg ${
+                               !isEnglishLearner 
+                               ? 'bg-indigo-500 hover:bg-indigo-600 shadow-indigo-500/20' 
+                               : 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/20'
+                           }`}
+                       >
+                           Got it
+                       </button>
+                   </div>
+               </div>
+           </div>
+       )}
+
       {/* Save Highlight Dialog */}
       {showSaveDialog && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all scale-100">
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                🔖 保存到学习库
+                🔖 Save to Learning Library
             </h3>
 
             <div className="mb-4">
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                    保存为
+                    Save as
                 </label>
                 <div className="flex bg-gray-100 p-1 rounded-lg">
                     <div className={`flex-1 py-1.5 text-sm font-medium rounded-md text-center transition-all ${
                         isEnglishLearner ? 'bg-white text-amber-600 shadow-sm' : 'text-gray-400'
                     }`}>
-                        📚 生词
+                        📚 Vocabulary
                     </div>
                     <div className={`flex-1 py-1.5 text-sm font-medium rounded-md text-center transition-all ${
                         !isEnglishLearner ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'
                     }`}>
-                        🧠 术语
+                        🧠 Term
                     </div>
                 </div>
                 <p className="text-[10px] text-gray-400 mt-1 text-center">
-                    *根据当前模式自动分类
+                    *Auto-categorized based on mode
                 </p>
             </div>
 
             <div className="mb-4">
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                选中文本
+                Selected Text
               </label>
               <div className="text-sm text-gray-800 bg-yellow-50 p-3 rounded-lg border border-yellow-100 max-h-32 overflow-y-auto">
                 {selectedText}
@@ -1983,14 +2132,14 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
 
             <div className="mb-6">
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                笔记 (可选)
+                Note (Optional)
               </label>
               <textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-sm"
                 rows={3}
-                placeholder="添加中文翻译或用法备注..."
+                placeholder="Add translation or usage notes..."
                 autoFocus
               />
             </div>
@@ -2000,13 +2149,13 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                 onClick={closeDialog}
                 className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition font-medium text-sm"
               >
-                取消
+                Cancel
               </button>
               <button
                 onClick={handleSavePhrase}
                 className="flex-1 px-4 py-2.5 bg-primary text-white rounded-xl hover:bg-primary-dark transition font-medium text-sm shadow-lg shadow-primary/30"
               >
-                确认保存
+                Confirm Save
               </button>
             </div>
           </div>
@@ -2022,7 +2171,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                 <polyline points="20 6 9 17 4 12"></polyline>
               </svg>
             </div>
-            <span className="font-medium">已加入 Learning Library</span>
+            <span className="font-medium">Added to Learning Library</span>
           </div>
         </div>
       )}

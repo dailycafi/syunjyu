@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { register, login, logout, sync, getSyncStatus } from '@/lib/api'
+import { useToast } from '@/components/Toast'
 
 export default function AccountPage() {
+  const { showToast } = useToast()
   const [syncStatus, setSyncStatus] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [isLogin, setIsLogin] = useState(true)
@@ -37,20 +39,20 @@ export default function AccountPage() {
         await register(email, password)
       }
 
-      alert(isLogin ? 'Logged in successfully!' : 'Registered successfully!')
+      showToast(isLogin ? 'Logged in successfully!' : 'Registered successfully!', 'success')
       setEmail('')
       setPassword('')
       loadSyncStatus()
     } catch (error) {
       console.error('Auth failed:', error)
-      alert('Authentication failed')
+      showToast('Authentication failed', 'error')
     }
   }
 
   const handleLogout = async () => {
     try {
       await logout()
-      alert('Logged out successfully')
+      showToast('Logged out successfully', 'success')
       loadSyncStatus()
     } catch (error) {
       console.error('Logout failed:', error)
@@ -61,13 +63,14 @@ export default function AccountPage() {
     setSyncing(true)
     try {
       const result = await sync()
-      alert(
-        `Sync completed!\nUploaded: ${result.uploaded}\nDownloaded: ${result.downloaded}`
+      showToast(
+        `Sync completed! Uploaded: ${result.uploaded}, Downloaded: ${result.downloaded}`,
+        'success'
       )
       loadSyncStatus()
     } catch (error) {
       console.error('Sync failed:', error)
-      alert('Sync failed. Please check your connection and try again.')
+      showToast('Sync failed. Please check your connection and try again.', 'error')
     } finally {
       setSyncing(false)
     }

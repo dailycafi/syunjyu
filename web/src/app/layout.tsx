@@ -2,6 +2,7 @@ import './globals.css'
 import type { Metadata } from 'next'
 import Sidebar from '@/components/Sidebar'
 import { UserPreferencesProvider } from '@/lib/preferences'
+import { ToastProvider } from '@/components/Toast'
 
 export const metadata: Metadata = {
   title: 'Syunjyun Agent',
@@ -17,15 +18,17 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <UserPreferencesProvider>
-          <div className="flex h-screen overflow-hidden">
-            {/* Sidebar */}
-            <Sidebar />
+          <ToastProvider>
+            <div className="flex h-screen overflow-hidden">
+              {/* Sidebar */}
+              <Sidebar />
 
-            {/* Main content */}
-            <main className="flex-1 overflow-y-auto bg-gray-50">
-              {children}
-            </main>
-          </div>
+              {/* Main content */}
+              <main className="flex-1 overflow-y-auto bg-gray-50">
+                {children}
+              </main>
+            </div>
+          </ToastProvider>
         </UserPreferencesProvider>
       </body>
     </html>

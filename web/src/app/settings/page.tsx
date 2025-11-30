@@ -1,16 +1,21 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useToast } from '@/components/Toast'
 import {
   getAllSettings,
   updateSetting,
   exportPDF,
+  getLocalModels,
 } from '@/lib/api'
 
 export default function SettingsPage() {
+  const { showToast } = useToast()
   const [settings, setSettings] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [localModels, setLocalModels] = useState<any[]>([])
+  const [loadingModels, setLoadingModels] = useState(false)
   
   // Local connection state
   const [localHost, setLocalHost] = useState('127.0.0.1')
@@ -26,6 +31,7 @@ export default function SettingsPage() {
     }
     
     loadData()
+    loadModels()
   }, [])
 
   const loadData = async () => {
@@ -38,6 +44,20 @@ export default function SettingsPage() {
       // Even if backend is down, we allow changing local settings
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadModels = async () => {
+    setLoadingModels(true)
+    try {
+      const res = await getLocalModels()
+      if (res && res.models) {
+        setLocalModels(res.models)
+      }
+    } catch (error) {
+      console.error('Failed to load local models:', error)
+    } finally {
+      setLoadingModels(false)
     }
   }
 
@@ -57,6 +77,11 @@ export default function SettingsPage() {
             remote_model_name: 'MiniMax-M2'
         }))
       }
+      
+      // Reload models if base URL changed
+      if (key === 'local_model_base_url') {
+          loadModels()
+      }
 
       // Dispatch custom event for Sidebar update
       window.dispatchEvent(new Event('settings_updated'))
@@ -70,8 +95,8 @@ export default function SettingsPage() {
   const handleSaveLocalConnection = () => {
     localStorage.setItem('custom_api_host', localHost)
     localStorage.setItem('custom_api_port', localPort)
-    alert('Local connection settings saved. Please refresh to apply.')
-    window.location.reload()
+    showToast('Local connection settings saved. Please refresh to apply.', 'success')
+    setTimeout(() => window.location.reload(), 1000)
   }
 
   const handleExportPDF = async (type: 'news' | 'concepts' | 'phrases') => {
@@ -87,7 +112,7 @@ export default function SettingsPage() {
       URL.revokeObjectURL(url)
     } catch (error) {
       console.error('Failed to export PDF:', error)
-      alert('Failed to export PDF')
+      showToast('Failed to export PDF', 'error')
     }
   }
 
@@ -123,38 +148,69 @@ export default function SettingsPage() {
             {/* Local Service Configuration */}
             {(settings.model_provider === 'local' || !settings.model_provider) && (
               <div className="space-y-4 pt-4 border-t border-slate-100">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Model Name
-                  </label>
-                  <select
-                    value={settings.local_model_name || 'gpt-oss-20B'}
-                    onChange={(e) => {
-                      setSettings(prev => ({ ...prev, local_model_name: e.target.value }))
-                      handleSaveSetting('local_model_name', e.target.value)
-                    }}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="gpt-oss-20B">gpt-oss-20B</option>
-                    <option value="Qwen 3 (14B)">Qwen 3 (14B)</option>
-                  </select>
-                </div>
-
+                
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Base URL
                   </label>
-                  <input
-                    type="text"
-                    value={settings.local_model_base_url || 'http://127.0.0.1:1234/v1'}
-                    onChange={(e) => setSettings(prev => ({ ...prev, local_model_base_url: e.target.value }))}
-                    onBlur={(e) => handleSaveSetting('local_model_base_url', e.target.value)}
-                    placeholder="http://127.0.0.1:1234/v1"
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
-                  />
+                  <div className="flex gap-2">
+                    <input
+                        type="text"
+                        value={settings.local_model_base_url || 'http://127.0.0.1:1234/v1'}
+                        onChange={(e) => setSettings(prev => ({ ...prev, local_model_base_url: e.target.value }))}
+                        onBlur={(e) => handleSaveSetting('local_model_base_url', e.target.value)}
+                        placeholder="http://127.0.0.1:1234/v1"
+                        className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+                    />
+                    <button 
+                        onClick={loadModels}
+                        disabled={loadingModels}
+                        className="px-4 py-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                    >
+                        {loadingModels ? 'Loading...' : 'Refresh Models'}
+                    </button>
+                  </div>
                   <p className="mt-1 text-xs text-slate-500">
                     Examples: LM Studio (http://127.0.0.1:1234/v1), Ollama (http://127.0.0.1:11434/v1)
                   </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Model Name
+                  </label>
+                  <div className="relative">
+                    <select
+                        value={settings.local_model_name || ''}
+                        onChange={(e) => {
+                        setSettings(prev => ({ ...prev, local_model_name: e.target.value }))
+                        handleSaveSetting('local_model_name', e.target.value)
+                        }}
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+                    >
+                        <option value="" disabled>Select a model...</option>
+                        {localModels.length > 0 ? (
+                            localModels.map((model) => (
+                                <option key={model.id} value={model.id}>
+                                    {model.name || model.id}
+                                </option>
+                            ))
+                        ) : (
+                            <>
+                                <option value="gpt-3.5-turbo">gpt-3.5-turbo (Default)</option>
+                                <option value="local-model">local-model (Generic)</option>
+                            </>
+                        )}
+                    </select>
+                    <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-500">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                  </div>
+                   {localModels.length === 0 && !loadingModels && (
+                      <p className="mt-1 text-xs text-amber-600">
+                          Could not fetch models from Base URL. Using default options. Check if your local server is running.
+                      </p>
+                  )}
                 </div>
               </div>
             )}

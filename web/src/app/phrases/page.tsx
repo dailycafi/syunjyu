@@ -13,11 +13,13 @@ import {
   deletePhrase
 } from '@/lib/api'
 import { useUserPreferences } from '@/lib/preferences'
+import { useToast } from '@/components/Toast'
 
 const VOCAB_HIGHLIGHT_COLOR = '#fff3b0'
 const TERM_HIGHLIGHT_COLOR = '#e0e7ff'
 
 export default function PhrasesPage() {
+  const { showToast } = useToast()
   const [phrases, setPhrases] = useState<PhraseRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -55,7 +57,7 @@ export default function PhrasesPage() {
       setDeleteConfirmId(null)
     } catch (error) {
       console.error('Failed to delete phrase:', error)
-      alert('Failed to delete item')
+      showToast('Failed to delete item', 'error')
     }
   }
 
