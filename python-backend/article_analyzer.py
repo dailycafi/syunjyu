@@ -116,8 +116,8 @@ Requirements:
 5. **Strict JSON**: Return ONLY valid JSON. No markdown, no comments.
 """
 
-VOCABULARY_PROMPT_ENGLISH = """You are an expert linguistic consultant.
-Your goal is to extract advanced vocabulary from the article and provide a comprehensive study guide.
+VOCABULARY_PROMPT_ENGLISH = """You are an expert linguistic consultant for advanced English majors.
+Your goal is to extract sophisticated, high-level vocabulary (CEFR C1/C2, GRE, LSAT level) from the article.
 
 Article Title: {title}
 Article Content:
@@ -137,10 +137,12 @@ Return JSON:
 }}
 
 Requirements:
-- Provide 8-12 terms that are essential to understanding the article or are high-value academic/professional words.
+- Provide 8-12 terms that are challenging even for native speakers or advanced learners.
+- Focus on rare words, nuanced academic terms, literary expressions, or complex idiomatic phrases found in the text.
+- **CRITICAL: Do NOT select common or intermediate words (CEFR A1-B2) unless used in a highly obscure sense.**
 - "pronunciation" must use standard IPA (e.g., /ˌdʒen.ə.rə.tɪv/).
 - "definition" should be precise, professional, and comprehensive (referencing Oxford/Cambridge style).
-- "example" must be a full, complex sentence (at least 15 words) that clearly contextaulizes the term.
+- "example" must be a full, complex sentence (at least 15 words) that clearly contextualizes the term.
 - Return ONLY valid JSON.
 """
 

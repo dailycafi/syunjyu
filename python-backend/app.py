@@ -239,6 +239,21 @@ async def update_setting(setting: SettingUpdate):
 @app.get("/api/models/local")
 async def list_local_models():
     """Get list of available local models"""
+    # Try to fetch from configured base URL first
+    try:
+        base_url = db.get_setting("local_model_base_url")
+        if base_url:
+            target_url = f"{base_url.rstrip('/')}/models"
+            
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                response = await client.get(target_url)
+                if response.status_code == 200:
+                    data = response.json()
+                    if "data" in data:
+                        return {"models": [{"id": m["id"], "name": m["id"]} for m in data["data"]]}
+    except Exception as e:
+        print(f"Failed to fetch external local models: {e}")
+
     return {"models": get_local_models()}
 
 
@@ -455,6 +470,7 @@ async def analyze_news(news_id: int, request: AnalysisRequest):
     """
     try:
         config = get_ai_config()
+        print(f"Starting analysis for news {news_id}, scope={request.scope}, model={config['model']}, base_url={config['base_url']}")
         
         analysis = await analyze_article(
             news_id,
@@ -468,8 +484,10 @@ async def analyze_news(news_id: int, request: AnalysisRequest):
         
         return {"status": "success", "analysis": analysis}
     except ValueError as e:
+        print(f"ValueError in analyze_news: {e}")
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
+         print(f"Unexpected error in analyze_news: {e}")
          raise HTTPException(status_code=500, detail=f"Analysis error: {str(e)}")
 
 
