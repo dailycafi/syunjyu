@@ -26,6 +26,7 @@ import remarkGfm from 'remark-gfm'
 import { format } from 'date-fns'
 import { getNewsCategoryLabel } from '@/lib/newsCategories'
 import { useToast } from '@/components/Toast'
+import ConfirmModal from '@/components/ConfirmModal'
 import { useUserPreferences } from '@/lib/preferences'
 import QuizView from '@/components/QuizView'
 
@@ -836,6 +837,19 @@ interface FeedbackState {
 export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientProps) {
   const router = useRouter()
   const { showToast } = useToast()
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+    onConfirm: () => void
+    isDestructive?: boolean
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  })
+
   const { isEnglishLearner, mode } = useUserPreferences()
   
   const [feedbackState, setFeedbackState] = useState<FeedbackState | null>(null)
@@ -1121,21 +1135,28 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
   }
 
   const handleRefetch = async () => {
-    if (!confirm('Are you sure you want to re-fetch this article? This will overwrite current content.')) return
-    
-    setRefetching(true)
-    try {
-        const result = await refetchNews(newsId)
-        if (result.status === 'success') {
-            // Reload news details
-            await loadNews()
+    setConfirmModal({
+      isOpen: true,
+      title: 'Re-fetch Article',
+      message: 'Are you sure you want to re-fetch this article? This will overwrite current content and analysis.',
+      isDestructive: true,
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }))
+        setRefetching(true)
+        try {
+            const result = await refetchNews(newsId)
+            if (result.status === 'success') {
+                // Reload news details
+                await loadNews()
+            }
+        } catch (error) {
+            console.error('Refetch failed:', error)
+            showToast('Re-fetch failed, please try again later', 'error')
+        } finally {
+            setRefetching(false)
         }
-    } catch (error) {
-        console.error('Refetch failed:', error)
-        showToast('Re-fetch failed, please try again later', 'error')
-    } finally {
-        setRefetching(false)
-    }
+      }
+    })
   }
 
   const computeSelectionMeta = (selection: SelectionMenu): SelectionMeta | null => {
@@ -1334,14 +1355,22 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
   }
 
   const handleDeletePhrase = async (phraseId: number) => {
-    if (!confirm('Are you sure you want to remove this from your collection?')) return
-    try {
-      await deletePhrase(phraseId)
-      await loadPhrases()
-    } catch (error) {
-      console.error('Failed to delete phrase:', error)
-      showToast('Failed to delete phrase', 'error')
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Phrase',
+      message: 'Are you sure you want to remove this from your collection?',
+      isDestructive: true,
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }))
+        try {
+          await deletePhrase(phraseId)
+          await loadPhrases()
+        } catch (error) {
+          console.error('Failed to delete phrase:', error)
+          showToast('Failed to delete phrase', 'error')
+        }
+      }
+    })
   }
 
   const handleAiTermClick = (term: string, definition: string, rect: DOMRect) => {
@@ -2175,6 +2204,15 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        isDestructive={confirmModal.isDestructive}
+      />
     </div>
   )
 }
