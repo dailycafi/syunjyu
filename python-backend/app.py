@@ -923,7 +923,7 @@ async def get_all_phrases_texts():
 async def check_sentence(request: CheckSentenceRequest):
     """
     Check if a user-provided sentence correctly uses a specific term.
-    Returns feedback.
+    Returns feedback with a score.
     """
     config = get_ai_config()
 
@@ -934,26 +934,44 @@ async def check_sentence(request: CheckSentenceRequest):
     Student's sentence:
     "{request.sentence}"
     
-    Please analyze:
-    1. Is the term used correctly in context?
-    2. Is the grammar correct?
-    3. Does it sound natural?
+    Please evaluate the sentence and provide:
+    1. A score from A (Perfect) to F (Poor).
+    2. A helpful feedback comment explaining why it's good or what needs improvement.
     
-    Provide concise, encouraging feedback. If there's an error, explain it gently and suggest a correction.
+    Output strictly in JSON format:
+    {{
+        "score": "A", 
+        "comment": "Great usage! ..."
+    }}
     """
 
     try:
-        feedback = await generate_remote(
+        response_text = await generate_remote(
             provider=config["provider"],
             model_name=config["model"],
             prompt=prompt,
             api_key=config["api_key"],
-            max_tokens=300,
+            max_tokens=800,
             temperature=0.3,
             system_prompt=system_prompt,
             base_url=config["base_url"]
         )
-        return {"status": "success", "feedback": feedback.strip()}
+        
+        # Robust JSON extraction using regex
+        import re
+        json_match = re.search(r'\{[\s\S]*\}', response_text)
+        
+        if json_match:
+            json_str = json_match.group(0)
+            try:
+                result = json.loads(json_str)
+                return {"status": "success", "feedback": result.get("comment", response_text), "score": result.get("score", "B")}
+            except json.JSONDecodeError:
+                pass
+        
+        # Fallback if JSON parsing fails
+        return {"status": "success", "feedback": response_text, "score": "B"}
+            
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI check error: {str(e)}")
 

@@ -187,9 +187,14 @@ Instructions:
     - "Call to action" blocks (e.g., "Got a tip?", "Subscribe", "Follow us", "Contact the author").
     - "Recommended for you", "You may also like", "Related Articles", "Read more", "Trending now" sections.
     - Boilerplate footers soliciting leaks, tips, or providing encrypted contact methods (Signal, email, etc.).
+    - **Support Information**: Remove support contact details, email addresses (e.g., "support@...", "incident@..."), and "reach out to our team" messages.
+    - **Accessibility Artifacts**: Remove text like "(opens in a new window)", "opens new tab", or similar screen reader hints.
     - Any text that interrupts the narrative flow but isn't part of the story.
 4.  **Verbatim Content**: Keep the main article text *exactly* as written. Do not summarize, rewrite, or change the tone.
-5.  **Format**: Return Markdown formatted text. IMPORTANT: Preserve all code blocks using triple backticks (```language ... ```). Use '- ' for bullet points.
+5.  **Format**: Return clean Markdown. 
+    - IMPORTANT: Preserve all code blocks using triple backticks (```language ... ```). 
+    - Use '- ' for bullet points.
+    - **Clean Formatting**: Do NOT use `__` for emphasis. Use `**` for bold if strictly necessary, but avoid excessive formatting. Remove artifacts like `__text__` or `**Header**` if they are just visual noise.
 6.  **Structure**: Preserve paragraph structure. Separate paragraphs with two newlines.
 7.  **Precision**: Do NOT hallucinate content. If the HTML is truncated or empty, return "ERROR: No content".
 8.  **Completeness**: If the Candidate Draft looks good but incomplete, use the HTML to finish it.
