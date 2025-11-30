@@ -331,36 +331,63 @@ async def get_news(
     conn = db.get_connection()
     cursor = conn.cursor()
 
-    query = "SELECT * FROM news WHERE deleted = 0"
-    params = []
+    # 1. Build base WHERE clause and params
+    where_clauses = ["deleted = 0"]
+    params_base = []
 
     if not show_hidden:
-        query += " AND hidden = 0"
+        where_clauses.append("hidden = 0")
 
     if starred is not None:
-        query += " AND starred = ?"
-        params.append(1 if starred else 0)
+        where_clauses.append("starred = ?")
+        params_base.append(1 if starred else 0)
 
     if source:
-        query += " AND source = ?"
-        params.append(source)
+        where_clauses.append("source = ?")
+        params_base.append(source)
 
     if category:
-        query += " AND category = ?"
-        params.append(category)
+        where_clauses.append("category = ?")
+        params_base.append(category)
 
     if date:
-        query += " AND date LIKE ?"
-        params.append(f"{date}%")
+        where_clauses.append("date LIKE ?")
+        params_base.append(f"{date}%")
 
-    query += " ORDER BY date DESC LIMIT ? OFFSET ?"
-    params.extend([limit, offset])
+    where_str = " AND ".join(where_clauses)
 
+    # 2. Get Total Count (matching filters)
+    cursor.execute(f"SELECT COUNT(*) as count FROM news WHERE {where_str}", params_base)
+    total_count = cursor.fetchone()['count']
+
+    # 3. Get Starred Count (contextual)
+    starred_count = 0
+    if starred is True:
+        starred_count = total_count
+    elif starred is False:
+        starred_count = 0
+    else:
+        # starred is None (All), calculate how many are starred within this filter context
+        # We need to construct a query that includes "starred = 1"
+        
+        # Re-build clauses for starred count
+        sc_clauses = [c for c in where_clauses if not c.startswith("starred")]
+        sc_clauses.append("starred = 1")
+        
+        sc_params = params_base.copy() 
+        
+        cursor.execute(f"SELECT COUNT(*) as count FROM news WHERE {' AND '.join(sc_clauses)}", sc_params)
+        starred_count = cursor.fetchone()['count']
+
+    # 4. Get Data (with limit/offset)
+    query = f"SELECT * FROM news WHERE {where_str} ORDER BY date DESC LIMIT ? OFFSET ?"
+    params = params_base + [limit, offset]
+    
     cursor.execute(query, params)
     news = [dict(row) for row in cursor.fetchall()]
     conn.close()
 
-    return {"news": news, "count": len(news)}
+    return {"news": news, "count": total_count, "starred_count": starred_count}
 
 
 # ==================== News Sources Endpoints (must be before /api/news/{news_id}) ====================

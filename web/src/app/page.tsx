@@ -27,6 +27,7 @@ export default function Home() {
   const [hasMore, setHasMore] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [totalCount, setTotalCount] = useState(0)
+  const [starredCount, setStarredCount] = useState(0)
   
   const activeFilterStyle: CSSProperties = {
     backgroundColor: 'var(--lover-cloud)',
@@ -59,6 +60,7 @@ export default function Home() {
       }
       
       setTotalCount(data.count)
+      setStarredCount(data.starred_count)
       setHasMore(data.news.length === 20)
       if (!reset) setOffset(prev => prev + 20)
       else setOffset(20)
@@ -90,6 +92,7 @@ export default function Home() {
           item.id === newsId ? { ...item, starred: starred ? 1 : 0 } : item
         )
       )
+      setStarredCount(prev => starred ? prev + 1 : prev - 1)
     } catch (error) {
       console.error('Failed to toggle star:', error)
     }
@@ -231,7 +234,7 @@ export default function Home() {
                 </div>
                 <div className="bg-white/90 dark:bg-slate-900/50 rounded-2xl p-4 shadow-sm border border-white/70 dark:border-white/10 backdrop-blur flex flex-col justify-center">
                   <div className="text-2xl font-bold" style={{ color: 'var(--lover-sky)' }}>
-                    {news.filter(n => n.starred === 1).length}
+                    {starredCount}
                   </div>
                   <div className="text-sm text-slate-600 dark:text-slate-400 mt-1">Starred</div>
                 </div>

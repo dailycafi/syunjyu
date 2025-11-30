@@ -19,23 +19,23 @@ export default function TaylorSpotlight() {
 
   const metrics = [
     {
-      label: '全球热度',
+      label: 'Global Heat',
       value: '+42%',
-      subLabel: '社交声量环比',
+      subLabel: 'Social Volume Change',
       accent: palette.rose,
       shadow: 'rgba(var(--color-sunset-rose-rgb), 0.25)',
     },
     {
-      label: 'AI提及',
+      label: 'AI Mentions',
       value: '326',
-      subLabel: '本周模型提到次数',
+      subLabel: 'Weekly Model Mentions',
       accent: palette.sky,
       shadow: 'rgba(var(--color-taylor-glow-rgb), 0.25)',
     },
     {
-      label: '巡演场次',
+      label: 'Tour Dates',
       value: '152',
-      subLabel: '仍在进行的城市',
+      subLabel: 'Active Cities',
       accent: palette.mocha,
       shadow: 'rgba(var(--color-midnight-violet-rgb), 0.25)',
     },
@@ -69,8 +69,8 @@ export default function TaylorSpotlight() {
               Syunjyun Agent · Spotlight
             </h2>
             <p className="mt-4 text-base text-secondary">
-              我们将 Lover 专辑的柔焦粉蓝作为 Syunjyun Agent 的默认配色，营造轻盈、温暖的监控面板体验，
-              方便团队在浏览 AI 新闻时维持稳定的视觉节奏。
+              We adopted the soft focus pink-blue palette from the Lover album as the default color scheme for Syunjyun Agent, creating a light and warm dashboard experience,
+              helping the team maintain a stable visual rhythm while browsing AI news.
             </p>
 
             <div className="mt-6 flex flex-wrap gap-2">
@@ -84,7 +84,7 @@ export default function TaylorSpotlight() {
               ))}
             </div>
             <p className="mt-6 text-sm text-secondary">
-              Lover 调色板为默认视觉语言，无需切换模式；所有文化脉冲卡片会自动沿用该方案。
+              Lover palette is the default visual language, no mode switching required; all culture pulse cards will automatically adapt to this scheme.
             </p>
           </div>
 
@@ -122,7 +122,7 @@ export default function TaylorSpotlight() {
                 Palette Signal
               </p>
               <p className="text-sm text-secondary">
-                色彩语义已同步至提示模板，保证资讯聚合页面的情绪一致性
+                Color semantics have been synchronized to prompt templates, ensuring emotional consistency in the news aggregation page.
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -137,9 +137,9 @@ export default function TaylorSpotlight() {
               </div>
               <div>
                 <p className="text-sm text-primary">
-                  最新色彩脉冲：<span className="font-semibold">Lover Glow</span>
+                  Latest Color Pulse: <span className="font-semibold">Lover Glow</span>
                 </p>
-                <p className="text-xs text-secondary">用于行业观察、粉丝增长与情绪板分析</p>
+                <p className="text-xs text-secondary">Used for industry observation, fan growth, and mood board analysis</p>
               </div>
             </div>
           </div>

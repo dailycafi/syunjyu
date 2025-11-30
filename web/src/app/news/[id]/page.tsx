@@ -39,6 +39,7 @@ const fetchNewsIdsFromApi = async (limit: number): Promise<string[]> => {
   try {
     const response = await fetch(`${apiBase}/api/news?limit=${limit}`, {
       signal: controller.signal,
+      cache: 'no-store',
     })
 
     if (!response.ok) {

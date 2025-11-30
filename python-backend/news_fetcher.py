@@ -193,6 +193,10 @@ Instructions:
 4.  **Verbatim Content**: Keep the main article text *exactly* as written. Do not summarize, rewrite, or change the tone.
 5.  **Format**: Return clean Markdown. 
     - IMPORTANT: Preserve all code blocks using triple backticks (```language ... ```). 
+    - **TABLES**: Identify and preserve ALL data tables. Convert them to valid Markdown tables (using `| Header |` and `|---|` syntax). 
+        - CRITICAL: Ensure every row has the same number of columns. Fix malformed tables where cell content is split across lines.
+        - If a table header is complex, simplify it to a single row if possible, or use standard Markdown table syntax.
+        - Do NOT flatten tables into lists or paragraphs.
     - Use '- ' for bullet points.
     - **Clean Formatting**: Do NOT use `__` for emphasis. Use `**` for bold if strictly necessary, but avoid excessive formatting. Remove artifacts like `__text__` or `**Header**` if they are just visual noise.
 6.  **Structure**: Preserve paragraph structure. Separate paragraphs with two newlines.

@@ -47,6 +47,13 @@ export default function Sidebar() {
                 setModelName('MiniMax-M2')
             }
         }
+
+        // Demo Mode Override
+        // If NEXT_PUBLIC_DEMO_MODE is 'true', force display to Local / Qwen 3 (14B)
+        if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true') {
+            setProviderType('Local')
+            setModelName('Qwen 3 (14B)')
+        }
       } catch (e) {
         console.error("Failed to fetch settings for sidebar", e)
       }

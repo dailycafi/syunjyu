@@ -297,6 +297,21 @@ async def analyze_article(
             # Return cached data if valid JSON
             cached_data = json.loads(cached_row["content"])
             cached_data["scope"] = scope
+            
+            # Validate vocabulary against content to filter hallucinations
+            if scope == "vocabulary" and "vocabulary" in cached_data:
+                cursor.execute("SELECT content_raw, summary FROM news WHERE id = ?", (news_id,))
+                news_row = cursor.fetchone()
+                if news_row:
+                    content_check = (news_row["content_raw"] or news_row["summary"] or "").lower()
+                    valid_vocab = []
+                    for item in cached_data["vocabulary"]:
+                        term = item.get("term")
+                        # Filter out terms not found in content (case-insensitive substring match)
+                        if term and term.lower() in content_check:
+                            valid_vocab.append(item)
+                    cached_data["vocabulary"] = valid_vocab
+
             conn.close()
             return cached_data
         except json.JSONDecodeError:
@@ -365,14 +380,27 @@ async def analyze_article(
                     "raw_response": response_text,
                  }
         
-        # Post-process vocabulary to fix phonetics
+        # Post-process vocabulary to fix phonetics and validate existence
         if scope == "vocabulary" and "vocabulary" in analysis_data:
+            valid_vocab = []
+            content_lower = content.lower()
+
             for item in analysis_data["vocabulary"]:
                 term = item.get("term")
-                if term:
-                    reliable_ipa = await get_reliable_phonetic(term)
-                    if reliable_ipa:
-                        item["pronunciation"] = reliable_ipa
+                if not term:
+                    continue
+                
+                # Validate term exists in content (prevent hallucinations)
+                if term.lower() not in content_lower:
+                    continue
+
+                reliable_ipa = await get_reliable_phonetic(term)
+                if reliable_ipa:
+                    item["pronunciation"] = reliable_ipa
+                
+                valid_vocab.append(item)
+            
+            analysis_data["vocabulary"] = valid_vocab
 
         # PERSISTENCE: Save to article_analysis table
         try:
