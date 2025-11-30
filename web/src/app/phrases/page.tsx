@@ -62,26 +62,36 @@ export default function PhrasesPage() {
   }
 
   const filteredPhrases = phrases.filter(p => {
-      // Filter by type
-      // Default to vocabulary if type is missing (backward compatibility)
-      const type = p.type || (p.color?.includes('fff3b0') || p.color?.includes('yellow') ? 'vocabulary' : 'vocabulary') // Defaulting old blue/pink to vocab for now unless we can guess better. 
-      // Actually, let's use the logic: if it was blue/indigo, it might be terminology which is still "vocabulary" in broad sense but "terms".
-      // But now we have "Sentences".
-      
-      // Improved Backwards Compat:
-      // If type is present, use it.
-      if (p.type) {
-          return activeTab === 'vocabulary' ? p.type === 'vocabulary' : p.type === 'content'
+      // 1. Determine Type
+      let type = p.type
+      if (!type) {
+          // Backward compatibility / Heuristics
+          if (p.text.length > 60) {
+              type = 'content'
+          } else if (p.color?.includes('fff3b0') || p.color?.includes('yellow')) {
+              type = 'vocabulary'
+          } else if (p.color?.includes('e0e7ff') || p.color?.includes('blue') || p.color?.includes('indigo')) {
+               type = 'terminology'
+          } else {
+              type = 'vocabulary' 
+          }
+      }
+
+      // 2. Filter based on Tab and User Mode
+      if (activeTab === 'content') {
+          return type === 'content'
       }
       
-      // Fallback: Text length heuristics?
-      // If text is long (> 50 chars), likely a sentence/content.
-      if (p.text.length > 60) {
-          return activeTab === 'content'
+      if (activeTab === 'vocabulary') {
+          // Filter based on user mode
+          if (isEnglishLearner) {
+              return type === 'vocabulary'
+          } else {
+              return type === 'terminology'
+          }
       }
       
-      // Otherwise assume vocabulary
-      return activeTab === 'vocabulary'
+      return false
   })
 
   const handleSearch = (e: React.FormEvent) => {
@@ -112,7 +122,7 @@ export default function PhrasesPage() {
             }`}
         >
             <span className="mr-2">📚</span>
-            Vocabulary
+            {isEnglishLearner ? 'Vocabulary' : 'Terminology'}
         </button>
         <button
             onClick={() => setActiveTab('content')}

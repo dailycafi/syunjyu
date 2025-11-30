@@ -139,7 +139,9 @@ Return JSON:
 Requirements:
 - Provide 8-12 terms that are challenging even for native speakers or advanced learners.
 - Focus on rare words, nuanced academic terms, literary expressions, or complex idiomatic phrases found in the text.
-- **CRITICAL: Do NOT select common or intermediate words (CEFR A1-B2) unless used in a highly obscure sense.**
+- **CRITICAL: Do NOT select common or intermediate words (CEFR A1-B2).**
+- **CRITICAL: Do NOT select common technical terms, proper nouns, or business buzzwords (e.g., "API", "blockchain", "enterprise", "data residency") unless they have a distinct, non-technical literary usage.**
+- Prioritize abstract nouns, sophisticated adjectives, and verbs over concrete technical nouns.
 - "pronunciation" must use standard IPA (e.g., /ˌdʒen.ə.rə.tɪv/).
 - "definition" should be precise, professional, and comprehensive (referencing Oxford/Cambridge style).
 - "example" must be a full, complex sentence (at least 15 words) that clearly contextualizes the term.
