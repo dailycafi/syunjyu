@@ -1,16 +1,18 @@
 'use client';
 
-import React from 'react';
+import React, { ReactNode } from 'react';
 
 interface ConfirmModalProps {
   isOpen: boolean;
   title: string;
   message: string;
   onConfirm: () => void;
-  onCancel: () => void;
+  onCancel?: () => void;
+  onClose?: () => void; // Alias for onCancel
   confirmText?: string;
   cancelText?: string;
   isDestructive?: boolean;
+  children?: ReactNode;
 }
 
 export default function ConfirmModal({
@@ -19,18 +21,23 @@ export default function ConfirmModal({
   message,
   onConfirm,
   onCancel,
+  onClose,
   confirmText = 'Confirm',
   cancelText = 'Cancel',
   isDestructive = false,
+  children,
 }: ConfirmModalProps) {
   if (!isOpen) return null;
+
+  // Support both onCancel and onClose
+  const handleClose = onCancel || onClose || (() => {});
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/30 backdrop-blur-sm animate-in fade-in duration-200"
-        onClick={onCancel}
+        onClick={handleClose}
       />
       
       {/* Modal Card - iOS Style Alert */}
@@ -42,11 +49,12 @@ export default function ConfirmModal({
           <p className="text-[13px] text-slate-600 dark:text-slate-300 leading-relaxed font-rounded">
             {message}
           </p>
+          {children}
         </div>
         
         <div className="grid grid-cols-2 border-t border-slate-300/30 dark:border-slate-600/50">
           <button
-            onClick={onCancel}
+            onClick={handleClose}
             className="py-3 text-[17px] font-normal text-blue-500 dark:text-blue-400 hover:bg-slate-100/50 dark:hover:bg-slate-700/50 active:bg-slate-200/50 transition-colors font-rounded border-r border-slate-300/30 dark:border-slate-600/50"
           >
             {cancelText}
