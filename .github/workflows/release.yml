@@ -94,9 +94,6 @@ jobs:
           "
           cat tauri.conf.json | grep version
 
-      - name: Install Tauri CLI
-        run: cargo install tauri-cli --version "^1"
-
       - name: Debug - Check tauri.conf.json
         run: |
           echo "=== tauri.conf.json content ==="
@@ -109,12 +106,11 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ matrix.args }}
-          tauriScript: cargo tauri
 
   publish-release:
     needs: [create-release, build-tauri]
