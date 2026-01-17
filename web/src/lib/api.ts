@@ -24,21 +24,91 @@ const getTauriBackendPort = async (): Promise<number | null> => {
 }
 
 /**
+ * Wait for backend to be healthy
+ */
+const waitForBackendHealth = async (port: number, maxAttempts: number = 30): Promise<boolean> => {
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/health`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(2000),
+      })
+      if (response.ok) {
+        console.log(`[API] Backend is healthy on port ${port}`)
+        return true
+      }
+    } catch (e) {
+      // Backend not ready yet
+    }
+    // Wait 500ms before next attempt
+    await new Promise(resolve => setTimeout(resolve, 500))
+  }
+  return false
+}
+
+/**
  * Initialize API with dynamic port detection
  * Should be called early in app lifecycle
  */
 export const initializeApi = async (): Promise<void> => {
   if (typeof window === 'undefined') return
   
-  // Try to get port from Tauri
-  const tauriPort = await getTauriBackendPort()
-  if (tauriPort) {
-    cachedBackendPort = tauriPort
-    console.log(`[API] Using Tauri backend port: ${tauriPort}`)
-    return
+  const tauri = (window as any).__TAURI__
+  
+  // If in Tauri context, wait for backend-ready event or poll for health
+  if (tauri?.invoke) {
+    // First try to get existing port (backend might already be running)
+    const existingPort = await getTauriBackendPort()
+    if (existingPort) {
+      cachedBackendPort = existingPort
+      console.log(`[API] Found existing Tauri backend port: ${existingPort}`)
+      
+      // Wait for it to be healthy
+      const isHealthy = await waitForBackendHealth(existingPort)
+      if (isHealthy) {
+        return
+      }
+    }
+    
+    // If no port yet, wait for backend-ready event
+    console.log('[API] Waiting for backend to start...')
+    return new Promise((resolve) => {
+      // Set a timeout to prevent infinite waiting
+      const timeout = setTimeout(() => {
+        console.warn('[API] Backend startup timeout, using default port')
+        resolve()
+      }, 30000)
+      
+      // Listen for backend-ready event
+      if (tauri?.event?.listen) {
+        tauri.event.listen('backend-ready', async (event: any) => {
+          const { port } = event.payload
+          if (port) {
+            cachedBackendPort = port
+            console.log(`[API] Backend ready event received, port: ${port}`)
+            clearTimeout(timeout)
+            resolve()
+          }
+        })
+      }
+      
+      // Also poll for port in case event was missed
+      const pollInterval = setInterval(async () => {
+        const port = await getTauriBackendPort()
+        if (port) {
+          const isHealthy = await waitForBackendHealth(port, 1)
+          if (isHealthy) {
+            cachedBackendPort = port
+            clearTimeout(timeout)
+            clearInterval(pollInterval)
+            resolve()
+          }
+        }
+      }, 1000)
+    })
   }
   
-  // Check localStorage for custom settings
+  // Not in Tauri context - check localStorage for custom settings
   const customPort = localStorage.getItem('custom_api_port')
   if (customPort) {
     cachedBackendPort = parseInt(customPort, 10)

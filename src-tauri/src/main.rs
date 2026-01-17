@@ -91,26 +91,33 @@ fn get_backend_path(app_handle: &AppHandle) -> Result<PathBuf, String> {
             .resource_dir()
             .ok_or("Failed to get resource directory")?;
         
-        let backend_path = resource_dir.join("python-backend");
+        // Try multiple possible paths (Tauri bundles with _up_ prefix for relative paths)
+        let possible_paths = vec![
+            resource_dir.join("_up_").join("python-backend"),  // Tauri's bundled path for ../python-backend
+            resource_dir.join("python-backend"),               // Direct path
+        ];
         
-        if backend_path.exists() {
-            Ok(backend_path)
-        } else {
-            // Fallback: try alongside the executable
-            let exe_path = std::env::current_exe()
-                .map_err(|e| format!("Failed to get executable path: {}", e))?;
-            let exe_dir = exe_path.parent()
-                .ok_or("Failed to get executable directory")?;
-            
-            let alt_path = exe_dir.join("python-backend");
-            if alt_path.exists() {
-                Ok(alt_path)
-            } else {
-                Err(format!(
-                    "Python backend not found. Tried: {:?} and {:?}",
-                    backend_path, alt_path
-                ))
+        for path in &possible_paths {
+            if path.exists() {
+                println!("[Tauri] Found Python backend at: {:?}", path);
+                return Ok(path.clone());
             }
+        }
+        
+        // Fallback: try alongside the executable
+        let exe_path = std::env::current_exe()
+            .map_err(|e| format!("Failed to get executable path: {}", e))?;
+        let exe_dir = exe_path.parent()
+            .ok_or("Failed to get executable directory")?;
+        
+        let alt_path = exe_dir.join("python-backend");
+        if alt_path.exists() {
+            Ok(alt_path)
+        } else {
+            Err(format!(
+                "Python backend not found. Tried: {:?}",
+                possible_paths
+            ))
         }
     }
 }
