@@ -102,15 +102,28 @@ jobs:
           echo "=== Checking distDir exists ==="
           ls -la web/out/ || echo "web/out does not exist"
 
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^1"
+
       - name: Build Tauri App
-        uses: tauri-apps/tauri-action@v0
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ""
+        run: |
+          cd src-tauri
+          cargo tauri build ${{ matrix.args }}
+
+      - name: Upload artifacts to release
+        uses: softprops/action-gh-release@v1
         with:
-          releaseId: ${{ needs.create-release.outputs.release_id }}
-          args: ${{ matrix.args }}
+          draft: true
+          tag_name: v${{ needs.create-release.outputs.version }}
+          files: |
+            src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+            src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz
+            src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz.sig
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   publish-release:
     needs: [create-release, build-tauri]
