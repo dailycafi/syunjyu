@@ -57,10 +57,10 @@
         "fullscreen": false,
         "resizable": true,
         "title": "AI Daily",
-        "width": 1400,
-        "height": 900,
-        "minWidth": 800,
-        "minHeight": 600
+        "width": 450,
+        "height": 800,
+        "minWidth": 375,
+        "minHeight": 667
       }
     ]
   }

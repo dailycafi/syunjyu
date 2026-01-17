@@ -56,6 +56,19 @@ class SyncData(BaseModel):
     phrases: List[dict] = []
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class UpdateProfileRequest(BaseModel):
+    display_name: Optional[str] = None
+
+
+class VerifyPasswordRequest(BaseModel):
+    password: str
+
+
 # Initialize database on startup
 @app.on_event("startup")
 async def startup():
@@ -156,6 +169,136 @@ async def login(user: UserLogin):
         token_type="bearer",
         user_id=row["id"]
     )
+
+
+# ==================== User Profile Endpoints ====================
+
+@app.get("/user/profile")
+async def get_profile(user_id: int = Depends(get_current_user)):
+    """Get user profile"""
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT id, email, display_name, created_at FROM users WHERE id = ?", (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    if not row:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {
+        "id": row["id"],
+        "email": row["email"],
+        "display_name": row["display_name"] if "display_name" in row.keys() else None,
+        "created_at": row["created_at"],
+    }
+
+
+@app.put("/user/profile")
+async def update_profile(
+    request: UpdateProfileRequest,
+    user_id: int = Depends(get_current_user)
+):
+    """Update user profile (display name)"""
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute(
+            "UPDATE users SET display_name = ? WHERE id = ?",
+            (request.display_name, user_id)
+        )
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Update failed: {str(e)}")
+    finally:
+        conn.close()
+    
+    return {"status": "success", "message": "Profile updated"}
+
+
+@app.post("/user/change-password")
+async def change_password(
+    request: ChangePasswordRequest,
+    user_id: int = Depends(get_current_user)
+):
+    """Change user password"""
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    # Get current password hash
+    cursor.execute("SELECT password_hash FROM users WHERE id = ?", (user_id,))
+    row = cursor.fetchone()
+    
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Verify current password
+    if not verify_password(request.current_password, row["password_hash"]):
+        conn.close()
+        raise HTTPException(status_code=401, detail="Current password is incorrect")
+    
+    # Update password
+    try:
+        new_hash = hash_password(request.new_password)
+        cursor.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ?",
+            (new_hash, user_id)
+        )
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Password change failed: {str(e)}")
+    finally:
+        conn.close()
+    
+    return {"status": "success", "message": "Password changed successfully"}
+
+
+@app.post("/user/verify-password")
+async def verify_user_password(
+    request: VerifyPasswordRequest,
+    user_id: int = Depends(get_current_user)
+):
+    """Verify user password (for account switching confirmation)"""
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT password_hash FROM users WHERE id = ?", (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    if not row:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if not verify_password(request.password, row["password_hash"]):
+        raise HTTPException(status_code=401, detail="Password is incorrect")
+    
+    return {"status": "success", "verified": True}
+
+
+@app.delete("/user/account")
+async def delete_account(user_id: int = Depends(get_current_user)):
+    """Delete user account and all associated data"""
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # Delete user's data
+        cursor.execute("DELETE FROM news WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM concepts WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM phrases WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Account deletion failed: {str(e)}")
+    finally:
+        conn.close()
+    
+    return {"status": "success", "message": "Account deleted"}
 
 
 # ==================== Sync Endpoints ====================

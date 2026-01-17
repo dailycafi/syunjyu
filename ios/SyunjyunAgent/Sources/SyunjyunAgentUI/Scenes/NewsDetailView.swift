@@ -118,7 +118,7 @@ struct NewsDetailView: View {
                 } else if viewModel.isAnalyzing {
                     HStack {
                         ProgressView()
-                        Text("Analyzing with MiniMax-M2...")
+                        Text("Analyzing with AI...")
                             .font(AgentFont.body())
                             .foregroundStyle(AgentColor.textSecondary)
                     }
@@ -156,7 +156,7 @@ struct NewsDetailView: View {
                         Text("API Mode")
                     }
                     Spacer()
-                    Text("Model: MiniMax-M2")
+                    Text("Model: MiniMax")
                 }
                 .font(AgentFont.caption())
                 .foregroundStyle(AgentColor.textSecondary)

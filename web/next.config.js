@@ -6,6 +6,9 @@ const nextConfig = {
   },
   // Disable server-side features for Tauri compatibility
   // trailingSlash: true, // Not strictly necessary for dev mode
+  turbopack: {
+    root: __dirname, // Set the root directory for Turbopack to the web directory
+  },
 }
 
 module.exports = nextConfig

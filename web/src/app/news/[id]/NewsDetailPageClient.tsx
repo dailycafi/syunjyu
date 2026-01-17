@@ -13,6 +13,9 @@ import {
   deletePhrase,
   refetchNews,
   generateTTS,
+  fetchDictionaryDefinition,
+  formatDictionaryDefinition,
+  defineWord,
   type AnalysisScope,
   type NewsRecord,
   type PhraseRecord,
@@ -160,7 +163,7 @@ const StructureNodeTree = ({ node }: { node: StructureNode }) => {
 }
 
 const StructureConclusion = ({ takeaways }: { takeaways?: string[] }) => {
-  if (!takeaways || takeaways.length === 0) return null
+  if (!takeaways || !Array.isArray(takeaways) || takeaways.length === 0) return null
 
   return (
     <div className="mt-10 rounded-3xl border border-purple-100 bg-gradient-to-br from-white to-purple-50/50 p-8 shadow-sm">
@@ -239,9 +242,27 @@ const renderHighlightedContent = (
     currentAudioTime: number = -1,
     subtitles: any[] = [],
     isAiMode: boolean = false,
-    onAiTermClick?: (term: string, definition: string, rect: DOMRect) => void
+    onAiTermClick?: (term: string, definition: string, rect: DOMRect) => void,
+    onLocalPhraseClick?: (phraseId: number, term: string, note: string, rect: DOMRect) => void,
+    onGlobalPhraseClick?: (term: string, rect: DOMRect) => void
 ): ReactNode => {
   if (!text) return null
+  
+  // Clean up junk patterns that may have slipped through backend processing
+  // 1. Remove lines that are just separators like |---| 
+  text = text.replace(/^\s*\|[-\s|]+\|\s*$/gm, '')
+  // 2. Remove "Got a Tip?" style lines
+  text = text.replace(/^\s*\|?\s*Got a [Tt]ip\?\s*\|?\s*$/gm, '')
+  // 3. Remove lines starting with | that aren't tables (no second |)
+  text = text.replace(/^\s*\|\s+(?![^\n]*\|)/gm, '')
+  // 4. Remove trailing pipe characters from lines
+  text = text.replace(/\s*\|\s*$/gm, '')
+  // 5. Remove "Are you a current or former..." lines
+  text = text.replace(/^.*Are you a current or former.*$/gm, '')
+  // 6. Remove "Contact the reporter" lines  
+  text = text.replace(/^.*[Cc]ontact the reporter[s]? securely.*$/gm, '')
+  // 7. Clean up multiple consecutive blank lines
+  text = text.replace(/\n{3,}/g, '\n\n')
   
   // Collect all ranges to highlight
   interface HighlightRange {
@@ -514,13 +535,13 @@ const renderHighlightedContent = (
                 <ReactMarkdown 
                     remarkPlugins={[remarkGfm]}
                     components={{
-                        table: ({node, ...props}) => <table className="min-w-full border-collapse" {...props} />,
-                        thead: ({node, ...props}) => <thead className="bg-slate-50 border-b-2 border-slate-200" {...props} />,
-                        th: ({node, ...props}) => <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider border-r border-slate-200 last:border-r-0" {...props} />,
-                        tbody: ({node, ...props}) => <tbody className="bg-white divide-y divide-slate-200" {...props} />,
-                        tr: ({node, ...props}) => <tr className="hover:bg-slate-50/80 transition-colors group" {...props} />,
-                        td: ({node, ...props}) => <td className="px-4 py-3 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap border-r border-slate-200 last:border-r-0" {...props} />,
-                    }}
+                        table: ({node, ...props}: any) => <table className="min-w-full border-collapse" {...props} />,
+                        thead: ({node, ...props}: any) => <thead className="bg-slate-50 border-b-2 border-slate-200" {...props} />,
+                        th: ({node, isHeader, ...props}: any) => <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider border-r border-slate-200 last:border-r-0" {...props} />,
+                        tbody: ({node, ...props}: any) => <tbody className="bg-white divide-y divide-slate-200" {...props} />,
+                        tr: ({node, isHeader, ...props}: any) => <tr className="hover:bg-slate-50/80 transition-colors group" {...props} />,
+                        td: ({node, isHeader, ...props}: any) => <td className="px-4 py-3 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap border-r border-slate-200 last:border-r-0" {...props} />,
+                    } as any}
                 >
                     {r.payload}
                 </ReactMarkdown>
@@ -563,12 +584,16 @@ const renderHighlightedContent = (
         
         if (!shouldShow) return // Skip rendering this mark
         
-        style = { backgroundColor: r.payload.color || VOCAB_HIGHLIGHT_COLOR }
-        title = "Saved: " + r.payload.note || ""
-        // Add ID for anchoring
-        // We can't easily add ID to mark directly via React array unless we use specific prop
-        // But we can use a span wrapper or just rely on scrolling logic.
-        // Actually, if we add id={`phrase-${r.payload.id}`} to mark, it should work.
+        // User saved phrases: Use GREEN to distinguish from AI-detected terms
+        style = { backgroundColor: '#dcfce7', borderBottom: '2px solid #22c55e' } // green-100 bg, green-500 underline
+        className += "hover:bg-green-200"
+        title = r.payload.note ? `📚 Saved: ${r.payload.note}` : "📚 Saved - Click to view or remove"
+        
+        // Add click handler for local phrases
+        onClick = (e) => {
+            e.stopPropagation()
+            onLocalPhraseClick?.(r.payload.id, highlightText, r.payload.note || '', e.currentTarget.getBoundingClientRect())
+        }
     } else if (r.type === 'global') {
         // Global phrases might not have type/color attached directly if just a string list?
         // getGlobalPhrases returns strings. 
@@ -606,35 +631,29 @@ const renderHighlightedContent = (
              return 
         }
         
-        // Global (from other articles) -> maybe dashed underline or lighter yellow
-        style = { backgroundColor: '#fef9c3', borderBottom: '2px solid #eab308' } // yellow-100 bg, yellow-500 underline
-        className += "hover:bg-yellow-200"
-        title = "Vocabulary from My Words"
-    } else if (r.type === 'ai') {
-        if (isAiMode) {
-            // AI/Tech Mode: Solid underline, cool color (Indigo/Blue)
-            style = { borderBottom: '2px solid #818cf8', backgroundColor: 'rgba(99, 102, 241, 0.1)' }
-            className += "hover:bg-indigo-100"
-            title = "AI Core Term: " + r.payload.definition
-        } else {
-            // English Learner: Dashed underline, warm color (Amber)
-            style = { borderBottom: '2px dashed #fbbf24', backgroundColor: 'rgba(253, 230, 138, 0.3)' }
-            className += "hover:bg-yellow-100"
-            title = "Key Vocabulary: " + r.payload.definition
-        }
+        // User saved phrases (from other articles): Use GREEN to distinguish from AI-detected terms
+        style = { backgroundColor: '#dcfce7', borderBottom: '2px solid #22c55e' } // green-100 bg, green-500 underline
+        className += "hover:bg-green-200"
+        title = "📚 Saved Vocabulary - Click to view"
         
-        // Skip highlighting if types don't match mode logic (but we want to show them if they exist?)
-        // User requirement: "In English mode, ONLY highlight vocab. In AI mode, ONLY highlight terms."
-        // Currently, aiVocabulary contains items based on the analysis run.
-        // If analysis was run in "english_learner" mode, items are vocab.
-        // If analysis was run in "ai_learner" mode, items are terms.
-        // So checking 'isAiMode' here is just styling.
-        // The filtering happens at the source: 'analysisData.vocabulary' content.
-        // If user switches mode, 'analysisData' is cleared and re-fetched.
-        // So this should be fine?
-        // Wait, user says "Why in AI mode, it highlights words saved in English mode?"
-        // Ah, this refers to 'local' or 'global' highlights, not 'ai' highlights.
-        // Let's check 'local' (saved phrases).
+        // Add click handler for global phrases
+        onClick = (e) => {
+            e.stopPropagation()
+            onGlobalPhraseClick?.(highlightText, e.currentTarget.getBoundingClientRect())
+        }
+    } else if (r.type === 'ai') {
+        // AI-detected terms: Use DASHED underline to distinguish from saved (solid)
+        if (isAiMode) {
+            // AI/Tech Mode: BLUE dashed underline
+            style = { borderBottom: '2px dashed #3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.08)' } // blue-500
+            className += "hover:bg-blue-100"
+            title = "🤖 AI Term: " + r.payload.definition
+        } else {
+            // English Learner Mode: YELLOW/AMBER dashed underline
+            style = { borderBottom: '2px dashed #f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.08)' } // amber-500
+            className += "hover:bg-amber-100"
+            title = "📖 Vocabulary: " + r.payload.definition
+        }
         
         onClick = (e) => {
             e.stopPropagation()
@@ -677,14 +696,17 @@ const VocabularyCard = ({ item, onIgnore, onSave, isAiMode, isSaved: initialSave
       setIsSaved(initialSaved)
   }, [initialSaved])
 
-  const themeClass = isAiMode 
-    ? 'bg-indigo-50/40 border-indigo-100 hover:border-indigo-200' 
-    : 'bg-amber-50/40 border-amber-100 hover:border-amber-200'
+  // If saved, use GREEN theme to match the highlight color
+  const themeClass = isSaved
+    ? 'bg-green-50/60 border-green-200 hover:border-green-300'
+    : isAiMode 
+      ? 'bg-indigo-50/40 border-indigo-100 hover:border-indigo-200' 
+      : 'bg-amber-50/40 border-amber-100 hover:border-amber-200'
     
-  const textClass = isAiMode ? 'text-indigo-900' : 'text-amber-900'
-  const subTextClass = isAiMode ? 'text-indigo-700/70 bg-indigo-100/50' : 'text-amber-700/70 bg-amber-100/50'
-  const iconClass = isAiMode ? 'text-indigo-300 hover:text-indigo-600 hover:bg-indigo-100/50' : 'text-amber-300 hover:text-amber-600 hover:bg-amber-100/50'
-  const buttonClass = isAiMode ? 'text-indigo-400 hover:text-indigo-600 hover:bg-indigo-100' : 'text-amber-400 hover:text-amber-600 hover:bg-amber-100'
+  const textClass = isSaved ? 'text-green-900' : isAiMode ? 'text-indigo-900' : 'text-amber-900'
+  const subTextClass = isSaved ? 'text-green-700/70 bg-green-100/50' : isAiMode ? 'text-indigo-700/70 bg-indigo-100/50' : 'text-amber-700/70 bg-amber-100/50'
+  const iconClass = isSaved ? 'text-green-400 hover:text-green-600 hover:bg-green-100/50' : isAiMode ? 'text-indigo-300 hover:text-indigo-600 hover:bg-indigo-100/50' : 'text-amber-300 hover:text-amber-600 hover:bg-amber-100/50'
+  const buttonClass = isSaved ? 'text-green-500 hover:text-green-700 hover:bg-green-100' : isAiMode ? 'text-indigo-400 hover:text-indigo-600 hover:bg-indigo-100' : 'text-amber-400 hover:text-amber-600 hover:bg-amber-100'
 
   const handleCheck = async () => {
     if (!sentence.trim()) return
@@ -826,6 +848,8 @@ interface TermPopupState {
   definition: string
   top: number
   left: number
+  phraseId?: number  // If set, this is a saved phrase that can be deleted
+  isSaved?: boolean  // Whether this term is already saved
 }
 
 interface FeedbackState {
@@ -874,6 +898,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
   const [saveType, setSaveType] = useState<'vocabulary' | 'content'>('vocabulary')
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
+  const [isLoadingDefinition, setIsLoadingDefinition] = useState(false)
   const [selectionMenu, setSelectionMenu] = useState<SelectionMenu | null>(null)
   const [termPopup, setTermPopup] = useState<TermPopupState | null>(null)
   const [selectionMeta, setSelectionMeta] = useState<SelectionMeta | null>(null)
@@ -1038,9 +1063,15 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
   }
 
   useEffect(() => {
+    let lastScrollY = window.scrollY
     const hideMenu = () => {
-        setSelectionMenu(null)
-        setTermPopup(null)
+        // Only hide if scrolled more than 10px to avoid closing on micro-scrolls
+        const scrollDelta = Math.abs(window.scrollY - lastScrollY)
+        if (scrollDelta > 10) {
+            setSelectionMenu(null)
+            setTermPopup(null)
+            lastScrollY = window.scrollY
+        }
     }
     window.addEventListener('scroll', hideMenu, true)
     return () => window.removeEventListener('scroll', hideMenu, true)
@@ -1271,17 +1302,43 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
     }
   }
 
-  const openSaveDialog = () => {
+  const openSaveDialog = async () => {
     if (!selectionMenu) return
-    setSelectedText(selectionMenu.text)
+    const text = selectionMenu.text
+    setSelectedText(text)
+    setNote('') // 清空之前的 note
     
     // Use helper to detect type
-    setSaveType(detectTextType(selectionMenu.text))
+    setSaveType(detectTextType(text))
     
     const meta = computeSelectionMeta(selectionMenu)
     setSelectionMeta(meta)
     setShowSaveDialog(true)
     setSelectionMenu(null)
+    
+    // 自动获取词汇释义（仅对英语学习模式且是单词/短语时）
+    if (isEnglishLearner && text.split(/\s+/).length <= 3) {
+      setIsLoadingDefinition(true)
+      try {
+        // 先尝试免费词典 API（更快）
+        const dictEntry = await fetchDictionaryDefinition(text)
+        if (dictEntry) {
+          const formatted = formatDictionaryDefinition(dictEntry)
+          setNote(formatted)
+        } else {
+          // 如果免费词典没找到，用 AI 定义
+          const aiResult = await defineWord(text)
+          if (aiResult.status === 'success' && aiResult.definition) {
+            setNote(aiResult.definition)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch definition:', error)
+        // 静默失败，用户可以手动输入
+      } finally {
+        setIsLoadingDefinition(false)
+      }
+    }
   }
 
   const handleSavePhrase = async () => {
@@ -1385,6 +1442,38 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
       })
   }
 
+  const handleLocalPhraseClick = (phraseId: number, term: string, note: string, rect: DOMRect) => {
+      // Close other menus
+      setSelectionMenu(null)
+      
+      setTermPopup({
+          term,
+          definition: note || 'No notes saved for this phrase.',
+          top: rect.bottom + window.scrollY + 8,
+          left: rect.left + window.scrollX + rect.width / 2,
+          phraseId,
+          isSaved: true
+      })
+  }
+
+  const handleGlobalPhraseClick = (term: string, rect: DOMRect) => {
+      // Close other menus
+      setSelectionMenu(null)
+      
+      // Find the phrase in the global phrases list to get its ID
+      // Global phrases come from all saved phrases, so we need to look them up
+      const matchingPhrase = phrases.find(p => p.text.toLowerCase() === term.toLowerCase())
+      
+      setTermPopup({
+          term,
+          definition: matchingPhrase?.note || 'Saved vocabulary from your learning library.',
+          top: rect.bottom + window.scrollY + 8,
+          left: rect.left + window.scrollX + rect.width / 2,
+          phraseId: matchingPhrase?.id,
+          isSaved: true
+      })
+  }
+
   const highlightedContent = useMemo(() => {
     return renderHighlightedContent(
         articleText, 
@@ -1395,7 +1484,9 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
         currentAudioTime,
         subtitles,
         !isEnglishLearner, // isAiMode
-        handleAiTermClick
+        handleAiTermClick,
+        handleLocalPhraseClick,
+        handleGlobalPhraseClick
     )
   }, [articleText, phrases, globalPhrases, analysisData.vocabulary, ignoredTerms, currentAudioTime, subtitles, isEnglishLearner])
 
@@ -1708,22 +1799,46 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                         </div>
                         <p className="text-sm text-slate-600 mb-4 leading-relaxed">{termPopup.definition}</p>
                         
-                        <button
-                            onClick={() => {
-                                handleSaveVocabularyItem({ 
-                                    term: termPopup.term, 
-                                    definition: termPopup.definition, 
-                                    example: '' 
-                                })
-                                setTermPopup(null)
-                            }}
-                            className="w-full flex items-center justify-center gap-2 bg-primary/10 text-primary hover:bg-primary/20 py-2 rounded-lg text-sm font-bold transition-colors"
-                        >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-                            </svg>
-                            Save to {isEnglishLearner ? 'Vocabulary' : 'Terminology'}
-                        </button>
+                        {termPopup.isSaved && termPopup.phraseId ? (
+                            // Show delete button for saved phrases
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        await deletePhrase(termPopup.phraseId!)
+                                        await loadPhrases()
+                                        showToast('Removed from saved words', 'success')
+                                    } catch (error) {
+                                        console.error('Failed to delete phrase:', error)
+                                        showToast('Failed to remove', 'error')
+                                    }
+                                    setTermPopup(null)
+                                }}
+                                className="w-full flex items-center justify-center gap-2 bg-red-50 text-red-600 hover:bg-red-100 py-2 rounded-lg text-sm font-bold transition-colors"
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                                Remove Highlight
+                            </button>
+                        ) : (
+                            // Show save button for new terms - GREEN to match saved highlight color
+                            <button
+                                onClick={() => {
+                                    handleSaveVocabularyItem({ 
+                                        term: termPopup.term, 
+                                        definition: termPopup.definition, 
+                                        example: '' 
+                                    })
+                                    setTermPopup(null)
+                                }}
+                                className="w-full flex items-center justify-center gap-2 bg-green-50 text-green-600 hover:bg-green-100 py-2 rounded-lg text-sm font-bold transition-colors"
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                                </svg>
+                                Save to {isEnglishLearner ? 'Vocabulary' : 'Terminology'}
+                            </button>
+                        )}
                     </div>
                     
                     {/* Arrow */}
@@ -1869,7 +1984,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                         {/* Section 1: My Saved Phrases */}
                         <section>
                             <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
-                                <span className={`w-1 h-6 rounded-full block ${isEnglishLearner ? 'bg-amber-500' : 'bg-indigo-500'}`}></span>
+                                <span className="w-1 h-6 rounded-full block bg-green-500"></span>
                                 My Collection ({
                                     isEnglishLearner 
                                     ? phrases.filter(p => !p.color?.includes('e0e7ff') && p.type !== 'terminology').length
@@ -1884,13 +1999,13 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                                         {phrases
                                             .filter(p => p.color?.includes('e0e7ff') || p.type === 'terminology')
                                             .map((phrase) => (
-                                            <div key={phrase.id} className="bg-indigo-50/30 p-4 rounded-xl border border-indigo-100 shadow-sm hover:shadow-md transition-all group hover:border-indigo-200">
+                                            <div key={phrase.id} className="bg-green-50/50 p-4 rounded-xl border border-green-200 shadow-sm hover:shadow-md transition-all group hover:border-green-300">
                                             <div className="flex justify-between items-start mb-2">
-                                                    <h4 className="font-bold text-indigo-900 text-lg px-2 py-0.5 rounded inline-block">
+                                                    <h4 className="font-bold text-green-900 text-lg px-2 py-0.5 rounded inline-block">
                                                     {phrase.text}
                                                 </h4>
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-xs text-indigo-300/80">
+                                                    <span className="text-xs text-green-400/80">
                                                         {format(new Date(phrase.created_at), 'MM/dd')}
                                                     </span>
                                                     <button
@@ -1898,7 +2013,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                                                             e.stopPropagation()
                                                             handleDeletePhrase(phrase.id)
                                                         }}
-                                                        className="p-1 rounded-full hover:bg-indigo-100 text-indigo-300 hover:text-red-500 transition-colors"
+                                                        className="p-1 rounded-full hover:bg-green-100 text-green-400 hover:text-red-500 transition-colors"
                                                         title="Remove"
                                                     >
                                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1908,13 +2023,13 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                                                 </div>
                                             </div>
                                             {phrase.note && (
-                                                    <div className="text-indigo-800/80 text-sm mb-3 bg-white/60 p-2 rounded border border-indigo-50 prose prose-sm max-w-none">
+                                                    <div className="text-green-800/80 text-sm mb-3 bg-white/60 p-2 rounded border border-green-100 prose prose-sm max-w-none">
                                                         <ReactMarkdown>{phrase.note}</ReactMarkdown>
                                                     </div>
                                             )}
-                                                <div className="text-xs text-slate-500 italic border-l-2 border-indigo-200 pl-2 line-clamp-2 group-hover:line-clamp-none transition-all">
+                                                <div className="text-xs text-slate-500 italic border-l-2 border-green-300 pl-2 line-clamp-2 group-hover:line-clamp-none transition-all">
                                                 ...{phrase.context_before} 
-                                                    <span className="font-bold text-indigo-700">{phrase.text}</span> 
+                                                    <span className="font-bold text-green-700">{phrase.text}</span> 
                                                 {phrase.context_after}...
                                             </div>
                                         </div>
@@ -1930,13 +2045,13 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                                         {phrases
                                             .filter(p => !p.color?.includes('e0e7ff') && p.type !== 'terminology')
                                             .map((phrase) => (
-                                            <div key={phrase.id} className="bg-amber-50/30 p-4 rounded-xl border border-amber-100 shadow-sm hover:shadow-md transition-all group hover:border-amber-200">
+                                            <div key={phrase.id} className="bg-green-50/50 p-4 rounded-xl border border-green-200 shadow-sm hover:shadow-md transition-all group hover:border-green-300">
                                                 <div className="flex justify-between items-start mb-2">
-                                                    <h4 className="font-bold text-amber-900 text-lg px-2 py-0.5 rounded inline-block">
+                                                    <h4 className="font-bold text-green-900 text-lg px-2 py-0.5 rounded inline-block">
                                                         {phrase.text}
                                                     </h4>
                                                     <div className="flex items-center gap-2">
-                                                        <span className="text-xs text-amber-300/80">
+                                                        <span className="text-xs text-green-400/80">
                                                             {format(new Date(phrase.created_at), 'MM/dd')}
                                                         </span>
                                                         <button
@@ -1944,7 +2059,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                                                                 e.stopPropagation()
                                                                 handleDeletePhrase(phrase.id)
                                                             }}
-                                                            className="p-1 rounded-full hover:bg-amber-100 text-amber-300 hover:text-red-500 transition-colors"
+                                                            className="p-1 rounded-full hover:bg-green-100 text-green-400 hover:text-red-500 transition-colors"
                                                             title="Remove"
                                                         >
                                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1954,13 +2069,13 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                                                     </div>
                                                 </div>
                                                 {phrase.note && (
-                                                    <div className="text-amber-800/80 text-sm mb-3 bg-white/60 p-2 rounded border border-amber-50 prose prose-sm max-w-none">
+                                                    <div className="text-green-800/80 text-sm mb-3 bg-white/60 p-2 rounded border border-green-100 prose prose-sm max-w-none">
                                                         <ReactMarkdown>{phrase.note}</ReactMarkdown>
                                                     </div>
                                                 )}
-                                                <div className="text-xs text-slate-500 italic border-l-2 border-amber-200 pl-2 line-clamp-2 group-hover:line-clamp-none transition-all">
+                                                <div className="text-xs text-slate-500 italic border-l-2 border-green-300 pl-2 line-clamp-2 group-hover:line-clamp-none transition-all">
                                                     ...{phrase.context_before} 
-                                                    <span className="font-bold text-amber-700">{phrase.text}</span> 
+                                                    <span className="font-bold text-green-700">{phrase.text}</span> 
                                                     {phrase.context_after}...
                                                 </div>
                                             </div>
@@ -2123,68 +2238,86 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
 
       {/* Save Highlight Dialog */}
       {showSaveDialog && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all scale-100">
-            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                🔖 Save to Learning Library
-            </h3>
-
-            <div className="mb-4">
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                    Save as
-                </label>
-                <div className="flex bg-gray-100 p-1 rounded-lg">
-                    <div className={`flex-1 py-1.5 text-sm font-medium rounded-md text-center transition-all ${
-                        isEnglishLearner ? 'bg-white text-amber-600 shadow-sm' : 'text-gray-400'
-                    }`}>
-                        📚 Vocabulary
-                    </div>
-                    <div className={`flex-1 py-1.5 text-sm font-medium rounded-md text-center transition-all ${
-                        !isEnglishLearner ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'
-                    }`}>
-                        🧠 Term
-                    </div>
-                </div>
-                <p className="text-[10px] text-gray-400 mt-1 text-center">
-                    *Auto-categorized based on mode
-                </p>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden">
+            {/* Header */}
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-base font-semibold text-gray-900">
+                Save to Library
+              </h3>
+              <button 
+                onClick={closeDialog}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
             </div>
 
-            <div className="mb-4">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                Selected Text
-              </label>
-              <div className="text-sm text-gray-800 bg-yellow-50 p-3 rounded-lg border border-yellow-100 max-h-32 overflow-y-auto">
-                {selectedText}
+            {/* Body */}
+            <div className="p-5 space-y-4">
+              {/* Type Indicator */}
+              <div className="flex items-center gap-2">
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${
+                  isEnglishLearner 
+                    ? 'bg-amber-50 text-amber-700 border border-amber-200' 
+                    : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                }`}>
+                  {isEnglishLearner ? 'Vocabulary' : 'Term'}
+                </span>
+                <span className="text-xs text-gray-400">Auto-detected from current mode</span>
+              </div>
+
+              {/* Selected Text */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                  Selected Text
+                </label>
+                <div className="text-sm text-gray-900 bg-gray-50 px-3 py-2.5 rounded-lg border border-gray-200 max-h-24 overflow-y-auto font-medium">
+                  {selectedText}
+                </div>
+              </div>
+
+              {/* Definition / Note */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5 flex items-center gap-2">
+                  <span>Definition / Note</span>
+                  {isLoadingDefinition && (
+                    <span className="inline-flex items-center gap-1.5 text-gray-400">
+                      <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      <span className="text-xs">Fetching...</span>
+                    </span>
+                  )}
+                </label>
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm leading-relaxed resize-none"
+                  rows={5}
+                  placeholder={isLoadingDefinition ? "Loading definition..." : "Add notes, translation, or context..."}
+                  disabled={isLoadingDefinition}
+                />
               </div>
             </div>
 
-            <div className="mb-6">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                Note (Optional)
-              </label>
-              <textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-sm"
-                rows={3}
-                placeholder="Add translation or usage notes..."
-                autoFocus
-              />
-            </div>
-
-            <div className="flex gap-3">
+            {/* Footer */}
+            <div className="px-5 py-4 bg-gray-50 border-t border-gray-100 flex gap-3">
               <button
                 onClick={closeDialog}
-                className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition font-medium text-sm"
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium text-sm"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSavePhrase}
-                className="flex-1 px-4 py-2.5 bg-primary text-white rounded-xl hover:bg-primary-dark transition font-medium text-sm shadow-lg shadow-primary/30"
+                disabled={isLoadingDefinition}
+                className="flex-1 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Confirm Save
+                Save
               </button>
             </div>
           </div>

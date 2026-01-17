@@ -6,6 +6,7 @@ import json
 from typing import List, Dict
 from db import get_connection, get_setting
 from model_remote import generate_remote, RemoteModelError
+from config import config
 
 async def filter_news_with_ai(batch_size: int = 20):
     """
@@ -54,9 +55,9 @@ Output JSON format:
 }}
 """
 
-    provider = get_setting("analysis_provider") or "minimax"
-    model = get_setting("analysis_model") or "MiniMax-M2"
-    api_key = get_setting(f"{provider}_api_key") or get_setting("minimax_api_key")
+    provider = get_setting("analysis_provider") or config.DEFAULT_ANALYSIS_PROVIDER
+    model = get_setting("analysis_model") or config.DEFAULT_MODEL_NAME
+    api_key = get_setting(f"{provider}_api_key") or get_setting("minimax_api_key") or config.get_api_key(provider)
 
     if not api_key:
         conn.close()

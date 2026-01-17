@@ -12,11 +12,9 @@ import uvicorn
 import httpx
 import os
 import json
-from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv(".env")
-load_dotenv(".env.local")
+# Import centralized config (handles .env loading)
+from config import config
 
 # Import modules
 import db
@@ -38,6 +36,25 @@ from tts_service import generate_speech_minimax, TTSError
 
 # Initialize FastAPI app
 app = FastAPI(title="AI Daily Backend", version="0.2.0")
+
+
+def get_current_user_id() -> Optional[int]:
+    """Get current logged-in user's ID from settings"""
+    user_id = db.get_setting("user_id")
+    if user_id:
+        try:
+            return int(user_id)
+        except (ValueError, TypeError):
+            return None
+    return None
+
+
+def require_user_id() -> int:
+    """Get current user ID, raise error if not logged in"""
+    user_id = get_current_user_id()
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not logged in")
+    return user_id
 
 # CORS middleware
 app.add_middleware(
@@ -61,21 +78,21 @@ async def startup():
     current_model = db.get_setting("remote_model_name")
     
     if current_provider == "openai" and current_model == "gpt-3.5-turbo":
-        print("Migrating legacy settings: OpenAI -> MiniMax")
-        db.set_setting("remote_provider", "minimax")
-        db.set_setting("remote_model_name", "MiniMax-M2")
+        print(f"Migrating legacy settings: OpenAI -> {config.DEFAULT_REMOTE_PROVIDER}")
+        db.set_setting("remote_provider", config.DEFAULT_REMOTE_PROVIDER)
+        db.set_setting("remote_model_name", config.DEFAULT_MODEL_NAME)
         
     print("Backend started successfully")
 
 # Helper to get AI config
 def get_ai_config():
     """Get current AI configuration (provider, model, api_key, base_url)"""
-    provider_type = db.get_setting("model_provider") or "remote" # "local" or "remote"
+    provider_type = db.get_setting("model_provider") or config.DEFAULT_MODEL_PROVIDER
     
     if provider_type == "local":
         # Local LLM API (e.g., LM Studio)
-        base_url = db.get_setting("local_model_base_url") or "http://127.0.0.1:1234/v1"
-        model = db.get_setting("local_model_name") or "gpt-3.5-turbo"
+        base_url = db.get_setting("local_model_base_url") or config.LOCAL_MODEL_BASE_URL
+        model = db.get_setting("local_model_name") or config.LOCAL_MODEL_NAME
         return {
             "provider": "openai", # Use openai-compatible client
             "model": model,
@@ -84,14 +101,12 @@ def get_ai_config():
         }
     else:
         # Remote API (MiniMax, OpenAI, etc.)
-        provider = db.get_setting("remote_provider") or "minimax"
-        model = db.get_setting("remote_model_name") or "MiniMax-M2"
+        provider = db.get_setting("remote_provider") or config.DEFAULT_REMOTE_PROVIDER
+        model = db.get_setting("remote_model_name") or config.DEFAULT_MODEL_NAME
         api_key = db.get_setting(f"{provider}_api_key")
         
         if not api_key:
-            api_key = os.getenv(f"{provider.upper()}_API_KEY")
-        if not api_key and provider == "minimax":
-            api_key = os.getenv("ANTHROPIC_API_KEY")
+            api_key = config.get_api_key(provider)
             
         return {
             "provider": provider,
@@ -128,6 +143,7 @@ class SavePhraseRequest(BaseModel):
     color: Optional[str] = None
     type: Optional[str] = "vocabulary"
     pronunciation: Optional[str] = None
+    difficulty_level: Optional[str] = None  # CEFR level: A1, A2, B1, B2, C1, C2
 
 
 class ExplainRequest(BaseModel):
@@ -147,6 +163,8 @@ class QuizQuestion(BaseModel):
     options: List[QuizOption]
     correct_answer_id: str
     explanation: str
+    question_type: Optional[str] = None  # "vocabulary", "grammar", "comprehension"
+    highlighted_text: Optional[str] = None  # The word/phrase being tested (for vocabulary/grammar)
 
 class QuizResponse(BaseModel):
     questions: List[QuizQuestion]
@@ -327,7 +345,8 @@ async def get_news(
     limit: int = Query(default=50, le=5000),
     offset: int = 0,
 ):
-    """Get news articles with optional filters"""
+    """Get news articles with optional filters (user-isolated for starred/hidden)"""
+    user_id = get_current_user_id()
     conn = db.get_connection()
     cursor = conn.cursor()
 
@@ -335,12 +354,22 @@ async def get_news(
     where_clauses = ["deleted = 0"]
     params_base = []
 
+    # User isolation: only show hidden/starred for current user
     if not show_hidden:
-        where_clauses.append("hidden = 0")
+        if user_id:
+            where_clauses.append("(hidden = 0 OR user_id != ? OR user_id IS NULL)")
+            params_base.append(user_id)
+        else:
+            where_clauses.append("hidden = 0")
 
     if starred is not None:
-        where_clauses.append("starred = ?")
-        params_base.append(1 if starred else 0)
+        if user_id:
+            where_clauses.append("starred = ? AND user_id = ?")
+            params_base.append(1 if starred else 0)
+            params_base.append(user_id)
+        else:
+            where_clauses.append("starred = ?")
+            params_base.append(1 if starred else 0)
 
     if source:
         where_clauses.append("source = ?")
@@ -360,23 +389,21 @@ async def get_news(
     cursor.execute(f"SELECT COUNT(*) as count FROM news WHERE {where_str}", params_base)
     total_count = cursor.fetchone()['count']
 
-    # 3. Get Starred Count (contextual)
+    # 3. Get Starred Count (contextual, user-specific)
     starred_count = 0
     if starred is True:
         starred_count = total_count
     elif starred is False:
         starred_count = 0
     else:
-        # starred is None (All), calculate how many are starred within this filter context
-        # We need to construct a query that includes "starred = 1"
-        
-        # Re-build clauses for starred count
-        sc_clauses = [c for c in where_clauses if not c.startswith("starred")]
-        sc_clauses.append("starred = 1")
-        
-        sc_params = params_base.copy() 
-        
-        cursor.execute(f"SELECT COUNT(*) as count FROM news WHERE {' AND '.join(sc_clauses)}", sc_params)
+        # starred is None (All), calculate how many are starred for this user
+        if user_id:
+            cursor.execute(
+                "SELECT COUNT(*) as count FROM news WHERE deleted = 0 AND starred = 1 AND user_id = ?",
+                (user_id,)
+            )
+        else:
+            cursor.execute("SELECT COUNT(*) as count FROM news WHERE deleted = 0 AND starred = 1")
         starred_count = cursor.fetchone()['count']
 
     # 4. Get Data (with limit/offset)
@@ -617,33 +644,91 @@ async def generate_quiz(news_id: int, request: QuizRequest):
 
     # Prompt Engineering
     if request.user_mode == "english_learner":
-        system_prompt = "You are an IELTS examiner creating reading comprehension tests."
+        system_prompt = """You are an expert English language examiner specializing in IELTS and TOEFL preparation.
+You create diverse question types that test vocabulary, grammar/syntax, and reading comprehension skills."""
         user_prompt = f"""
-        Based on the following article, create 3 multiple-choice questions to test English reading comprehension and vocabulary.
-        Focus on IELTS style questions: detailed understanding, vocabulary in context, and inference.
-        
-        Article Title: {row['title']}
-        Content:
-        {content}
-        
-        Output strictly in JSON format:
+Based on the following article, create exactly 3 multiple-choice questions with DIFFERENT question types:
+
+**REQUIRED: You MUST create exactly these 3 question types:**
+
+1. **VOCABULARY QUESTION** (question_type: "vocabulary")
+   - Find a challenging word or phrase from the article
+   - Ask what it means IN THE CONTEXT of this article
+   - Include the exact word/phrase in "highlighted_text"
+   - Options should include: correct meaning, a common but wrong meaning, a literal but wrong interpretation, and a distractor
+   - Example: "In the context of this article, what does 'ubiquitous' most likely mean?"
+
+2. **GRAMMAR/SYNTAX QUESTION** (question_type: "grammar")  
+   - Find an interesting sentence structure, grammatical construction, or syntactic pattern
+   - Test understanding of WHY a particular grammar form is used, or what function it serves
+   - Include the relevant sentence/phrase in "highlighted_text"
+   - Topics can include: conditional sentences, passive voice usage, relative clauses, participle phrases, subjunctive mood, inversion, parallel structure, etc.
+   - Example: "Why does the author use the passive voice in the sentence '...'?"
+   - Example: "What is the grammatical function of 'having completed' in '...'?"
+
+3. **COMPREHENSION QUESTION** (question_type: "comprehension")
+   - Test understanding of main ideas, inferences, author's purpose, or logical relationships
+   - Do NOT include highlighted_text for this type
+   - Focus on deeper understanding, not surface-level facts
+
+Article Title: {row['title']}
+Content:
+{content}
+
+**Output strictly in JSON format:**
+{{
+    "questions": [
         {{
-            "questions": [
-                {{
-                    "id": 1,
-                    "question": "Question text here?",
-                    "options": [
-                        {{"id": "A", "text": "Option A"}},
-                        {{"id": "B", "text": "Option B"}},
-                        {{"id": "C", "text": "Option C"}},
-                        {{"id": "D", "text": "Option D"}}
-                    ],
-                    "correct_answer_id": "B",
-                    "explanation": "Explanation why B is correct."
-                }}
-            ]
+            "id": 1,
+            "question_type": "vocabulary",
+            "highlighted_text": "ubiquitous",
+            "question": "In the context of this article, what does 'ubiquitous' most likely mean?",
+            "options": [
+                {{"id": "A", "text": "Extremely rare"}},
+                {{"id": "B", "text": "Present everywhere"}},
+                {{"id": "C", "text": "Highly controversial"}},
+                {{"id": "D", "text": "Technologically advanced"}}
+            ],
+            "correct_answer_id": "B",
+            "explanation": "In this context, 'ubiquitous' means 'present everywhere' or 'found in many places', describing how the technology has become widespread."
+        }},
+        {{
+            "id": 2,
+            "question_type": "grammar",
+            "highlighted_text": "Had the company not invested early, it would have missed the opportunity.",
+            "question": "What grammatical structure is used in this sentence, and why?",
+            "options": [
+                {{"id": "A", "text": "Past perfect to show completed action"}},
+                {{"id": "B", "text": "Third conditional with inversion to express hypothetical past"}},
+                {{"id": "C", "text": "Simple past to describe a real event"}},
+                {{"id": "D", "text": "Future perfect to predict outcomes"}}
+            ],
+            "correct_answer_id": "B",
+            "explanation": "This sentence uses the third conditional with subject-auxiliary inversion ('Had...not invested' instead of 'If...had not invested'), which is a formal way to express a hypothetical situation in the past."
+        }},
+        {{
+            "id": 3,
+            "question_type": "comprehension",
+            "question": "What can be inferred about the author's view on...?",
+            "options": [
+                {{"id": "A", "text": "Option A"}},
+                {{"id": "B", "text": "Option B"}},
+                {{"id": "C", "text": "Option C"}},
+                {{"id": "D", "text": "Option D"}}
+            ],
+            "correct_answer_id": "C",
+            "explanation": "The author implies this through..."
         }}
-        """
+    ]
+}}
+
+**IMPORTANT RULES:**
+- You MUST include all 3 question types: vocabulary, grammar, and comprehension
+- For vocabulary and grammar questions, highlighted_text is REQUIRED
+- Choose genuinely challenging vocabulary (B2-C2 level words)
+- Grammar questions should focus on interesting syntactic patterns, not basic grammar
+- All explanations should be educational and help learners understand the concept
+"""
     else: # ai_learner
         system_prompt = "You are a tech industry analyst creating critical thinking assessments."
         user_prompt = f"""
@@ -708,13 +793,14 @@ async def generate_quiz(news_id: int, request: QuizRequest):
 
 @app.post("/api/news/{news_id}/star")
 async def toggle_star(news_id: int, request: ToggleStarRequest):
-    """Toggle star status of news article"""
+    """Toggle star status of news article (user-specific)"""
+    user_id = require_user_id()
     conn = db.get_connection()
     cursor = conn.cursor()
 
     cursor.execute(
-        "UPDATE news SET starred = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        (1 if request.starred else 0, news_id)
+        "UPDATE news SET starred = ?, user_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        (1 if request.starred else 0, user_id, news_id)
     )
 
     conn.commit()
@@ -729,13 +815,14 @@ async def toggle_star(news_id: int, request: ToggleStarRequest):
 
 @app.post("/api/news/{news_id}/read")
 async def mark_read(news_id: int, request: MarkReadRequest):
-    """Mark news article as read/unread"""
+    """Mark news article as read/unread (user-specific)"""
+    user_id = require_user_id()
     conn = db.get_connection()
     cursor = conn.cursor()
 
     cursor.execute(
-        "UPDATE news SET is_read = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        (1 if request.read else 0, news_id)
+        "UPDATE news SET is_read = ?, user_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        (1 if request.read else 0, user_id, news_id)
     )
 
     conn.commit()
@@ -750,13 +837,14 @@ async def mark_read(news_id: int, request: MarkReadRequest):
 
 @app.post("/api/news/{news_id}/hide")
 async def hide_news(news_id: int, request: HideRequest):
-    """Hide/Unhide news article (Not Interested)"""
+    """Hide/Unhide news article (user-specific)"""
+    user_id = require_user_id()
     conn = db.get_connection()
     cursor = conn.cursor()
 
     cursor.execute(
-        "UPDATE news SET hidden = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        (1 if request.hidden else 0, news_id)
+        "UPDATE news SET hidden = ?, user_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        (1 if request.hidden else 0, user_id, news_id)
     )
 
     conn.commit()
@@ -833,9 +921,11 @@ async def list_concepts(
     search: Optional[str] = None,
     limit: int = Query(default=100, le=500),
 ):
-    """Get concepts with optional filters"""
-    user_id = db.get_setting("user_id")
-    user_id = int(user_id) if user_id and user_id.isdigit() else None
+    """Get concepts with optional filters (user-specific)"""
+    user_id = get_current_user_id()
+
+    if user_id is None:
+        return {"concepts": [], "count": 0}
 
     concepts = get_concepts(
         news_id=news_id,
@@ -851,17 +941,16 @@ async def list_concepts(
 
 @app.post("/api/phrases")
 async def save_phrase(request: SavePhraseRequest):
-    """Save a phrase to learning library"""
-    user_id = db.get_setting("user_id")
-    user_id = int(user_id) if user_id and user_id.isdigit() else None
+    """Save a phrase to learning library (user-specific)"""
+    user_id = require_user_id()
 
     conn = db.get_connection()
     cursor = conn.cursor()
 
     cursor.execute(
         """
-        INSERT INTO phrases (news_id, text, note, context_before, context_after, color, type, pronunciation, user_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO phrases (news_id, text, note, context_before, context_after, color, type, pronunciation, difficulty_level, user_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             request.news_id,
@@ -872,6 +961,7 @@ async def save_phrase(request: SavePhraseRequest):
             request.color or "#fff3b0",
             request.type or "vocabulary",
             request.pronunciation,
+            request.difficulty_level,  # CEFR level for user level tracking
             user_id,
         )
     )
@@ -889,15 +979,22 @@ async def get_phrases(
     search: Optional[str] = None,
     limit: int = Query(default=100, le=500),
 ):
-    """Get saved phrases"""
-    user_id = db.get_setting("user_id")
-    user_id = int(user_id) if user_id and user_id.isdigit() else None
+    """Get saved phrases (user-specific)"""
+    user_id = get_current_user_id()
 
     conn = db.get_connection()
     cursor = conn.cursor()
 
     query = "SELECT * FROM phrases WHERE deleted = 0"
     params = []
+
+    # User isolation: only show phrases for current user
+    if user_id is not None:
+        query += " AND user_id = ?"
+        params.append(user_id)
+    else:
+        # No user logged in, return empty
+        return {"phrases": []}
 
     if news_id:
         query += " AND news_id = ?"
@@ -906,10 +1003,6 @@ async def get_phrases(
     if search:
         query += " AND (text LIKE ? OR note LIKE ?)"
         params.extend([f"%{search}%", f"%{search}%"])
-
-    if user_id is not None:
-        query += " AND (user_id = ? OR user_id IS NULL)"
-        params.append(user_id)
 
     query += " ORDER BY created_at DESC LIMIT ?"
     params.append(limit)
@@ -923,25 +1016,64 @@ async def get_phrases(
 
 @app.get("/api/phrases/all-texts")
 async def get_all_phrases_texts():
-    """Get all user phrase texts for client-side matching"""
-    user_id = db.get_setting("user_id")
-    user_id = int(user_id) if user_id and user_id.isdigit() else None
+    """Get all user phrase texts for client-side matching (user-specific)"""
+    user_id = get_current_user_id()
+
+    if user_id is None:
+        return {"texts": []}
 
     conn = db.get_connection()
     cursor = conn.cursor()
 
-    query = "SELECT text FROM phrases WHERE deleted = 0"
-    params = []
-
-    if user_id is not None:
-        query += " AND (user_id = ? OR user_id IS NULL)"
-        params.append(user_id)
-
-    cursor.execute(query, params)
+    cursor.execute(
+        "SELECT text FROM phrases WHERE deleted = 0 AND user_id = ?",
+        (user_id,)
+    )
     texts = [row["text"] for row in cursor.fetchall()]
     conn.close()
 
     return {"texts": list(set(texts))} # Return unique texts
+
+
+# ==================== User Level Assessment Endpoints ====================
+
+from user_level import assess_user_level, get_user_profile, update_word_difficulty
+
+@app.get("/api/user/vocabulary-level")
+async def get_vocabulary_level():
+    """
+    Get user's estimated vocabulary level based on their saved words.
+    Returns assessment with recommended difficulty range.
+    """
+    user_id = db.get_setting("user_id")
+    user_id = int(user_id) if user_id and str(user_id).isdigit() else None
+    
+    assessment = assess_user_level(user_id)
+    return assessment
+
+
+@app.post("/api/phrases/{phrase_id}/difficulty")
+async def set_phrase_difficulty(phrase_id: int, difficulty: str):
+    """
+    Set or update the difficulty level of a saved phrase.
+    This helps improve user level assessment accuracy.
+    """
+    if difficulty not in ["A1", "A2", "B1", "B2", "C1", "C2"]:
+        raise HTTPException(status_code=400, detail="Invalid difficulty level. Must be A1, A2, B1, B2, C1, or C2.")
+    
+    update_word_difficulty(phrase_id, difficulty)
+    
+    # Re-assess user level after updating
+    user_id = db.get_setting("user_id")
+    user_id = int(user_id) if user_id and str(user_id).isdigit() else None
+    assessment = assess_user_level(user_id)
+    
+    return {
+        "status": "success",
+        "phrase_id": phrase_id,
+        "difficulty": difficulty,
+        "updated_assessment": assessment
+    }
 
 
 # ==================== Learning/Practice Endpoints ====================
@@ -1196,10 +1328,14 @@ async def login(request: AuthRequest):
         raise HTTPException(status_code=401, detail=str(e))
 
 
+class LogoutRequest(BaseModel):
+    clear_local_data: bool = False
+
+
 @app.post("/api/auth/logout")
-async def logout():
-    """Logout user"""
-    sync_client.logout()
+async def logout(request: LogoutRequest = LogoutRequest()):
+    """Logout user and optionally clear local data"""
+    sync_client.logout(clear_local_data=request.clear_local_data)
     return {"status": "success"}
 
 
@@ -1215,8 +1351,117 @@ async def sync():
 
 @app.get("/api/sync/status")
 async def sync_status():
-    """Get sync status"""
-    return sync_client.get_sync_status()
+    """Get sync status (user-specific data counts)"""
+    status = sync_client.get_sync_status()
+    user_id = get_current_user_id()
+    
+    # Add data counts (user-specific)
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    if user_id:
+        cursor.execute(
+            "SELECT COUNT(*) FROM news WHERE starred = 1 AND deleted = 0 AND user_id = ?",
+            (user_id,)
+        )
+        status["starred_count"] = cursor.fetchone()[0]
+        
+        cursor.execute(
+            "SELECT COUNT(*) FROM phrases WHERE deleted = 0 AND user_id = ?",
+            (user_id,)
+        )
+        status["phrases_count"] = cursor.fetchone()[0]
+        
+        cursor.execute(
+            "SELECT COUNT(*) FROM concepts WHERE deleted = 0 AND user_id = ?",
+            (user_id,)
+        )
+        status["concepts_count"] = cursor.fetchone()[0]
+    else:
+        status["starred_count"] = 0
+        status["phrases_count"] = 0
+        status["concepts_count"] = 0
+    
+    conn.close()
+    return status
+
+
+# ==================== User Profile Endpoints ====================
+
+class UpdateProfileRequest(BaseModel):
+    display_name: Optional[str] = None
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class VerifyPasswordRequest(BaseModel):
+    password: str
+
+
+@app.get("/api/user/profile")
+async def get_profile():
+    """Get user profile"""
+    try:
+        profile = await sync_client.get_profile()
+        return profile
+    except SyncError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.put("/api/user/profile")
+async def update_profile(request: UpdateProfileRequest):
+    """Update user profile"""
+    try:
+        result = await sync_client.update_profile(display_name=request.display_name)
+        return result
+    except SyncError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/user/change-password")
+async def change_password(request: ChangePasswordRequest):
+    """Change user password"""
+    try:
+        result = await sync_client.change_password(
+            current_password=request.current_password,
+            new_password=request.new_password
+        )
+        return result
+    except SyncError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/user/verify-password")
+async def verify_password(request: VerifyPasswordRequest):
+    """Verify user password"""
+    try:
+        verified = await sync_client.verify_password(request.password)
+        return {"verified": verified}
+    except SyncError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.delete("/api/user/account")
+async def delete_account():
+    """Delete user account"""
+    try:
+        result = await sync_client.delete_account()
+        return result
+    except SyncError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/user/clear-local-data")
+async def clear_local_data():
+    """Clear local user data without logging out"""
+    try:
+        sync_client.clear_local_data()
+        return {"status": "success", "message": "Local data cleared"}
+    except SyncError as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ==================== Health Check ====================
@@ -1232,13 +1477,15 @@ async def health():
 
 @app.delete("/api/phrases/{phrase_id}")
 async def delete_phrase(phrase_id: int):
-    """Delete a phrase from learning library"""
+    """Delete a phrase from learning library (user-specific)"""
+    user_id = require_user_id()
     conn = db.get_connection()
     cursor = conn.cursor()
     
+    # Only delete if it belongs to current user
     cursor.execute(
-        "UPDATE phrases SET deleted = 1 WHERE id = ?",
-        (phrase_id,)
+        "UPDATE phrases SET deleted = 1 WHERE id = ? AND user_id = ?",
+        (phrase_id, user_id)
     )
     
     affected = cursor.rowcount
@@ -1246,7 +1493,7 @@ async def delete_phrase(phrase_id: int):
     conn.close()
     
     if affected == 0:
-        raise HTTPException(status_code=404, detail="Phrase not found")
+        raise HTTPException(status_code=404, detail="Phrase not found or access denied")
         
     return {"status": "success", "message": "Phrase deleted"}
 

@@ -7,13 +7,14 @@ import httpx
 from typing import Optional, Dict, List
 import os
 from anthropic import AsyncAnthropic
+from config import config
 
 class RemoteModelError(Exception):
     """Exception raised for remote model API errors"""
     pass
 
 
-# Provider configurations
+# Provider configurations - use config for default model
 PROVIDERS = {
     "openai": {
         "name": "OpenAI",
@@ -28,7 +29,7 @@ PROVIDERS = {
     "minimax": {
         "name": "MiniMax",
         "base_url": "https://api.minimax.chat/v1", 
-        "models": ["MiniMax-M2"],
+        "models": [config.DEFAULT_MODEL_NAME],
     }
 }
 
@@ -78,16 +79,29 @@ async def generate_remote(
     if provider == "minimax":
         # MiniMax via Anthropic Client
         try:
-            # Use environment variables for configuration (ANTHROPIC_API_KEY, ANTHROPIC_BASE_URL)
-            # If specific Minimax key is passed, use it, otherwise let client find it in env
-            client_kwargs = {}
-            if api_key:
-                client_kwargs["api_key"] = api_key
+            # Ensure we have an API key - check all possible sources
+            final_api_key = api_key if api_key else None
+            if not final_api_key:
+                # Try to find it in config/env if not passed
+                final_api_key = (
+                    config.MINIMAX_API_KEY or 
+                    os.getenv("MINIMAX_API_KEY") or 
+                    os.getenv("ANTHROPIC_API_KEY")
+                )
             
-            # Do NOT hardcode base_url, let it read from ANTHROPIC_BASE_URL env var
-            # or fallback to default (which would be wrong for MiniMax but user has env var)
-            if os.getenv("ANTHROPIC_BASE_URL"):
-                client_kwargs["base_url"] = os.getenv("ANTHROPIC_BASE_URL")
+            # Validate we actually have a key
+            if not final_api_key:
+                raise RemoteModelError(
+                    "MiniMax API key not configured. Please set MINIMAX_API_KEY in .env file "
+                    "or configure it in Settings page."
+                )
+            
+            client_kwargs = {"api_key": final_api_key}
+            
+            # Check for base_url from env
+            base_url_env = os.getenv("ANTHROPIC_BASE_URL")
+            if base_url_env:
+                client_kwargs["base_url"] = base_url_env
             
             client = AsyncAnthropic(**client_kwargs)
             

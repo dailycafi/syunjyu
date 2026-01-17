@@ -5,9 +5,9 @@ const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8500'
 const DEFAULT_STATIC_NEWS_LIMIT = 2000
 
 type NewsDetailPageProps = {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 type NewsIdParam = {
@@ -75,7 +75,8 @@ export async function generateStaticParams(): Promise<NewsIdParam[]> {
   return ids.map((id) => ({ id }))
 }
 
-export default function NewsDetailPage({ params }: NewsDetailPageProps) {
-  const newsId = parseInt(params?.id ?? '', 10)
+export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
+  const { id } = await params
+  const newsId = parseInt(id ?? '', 10)
   return <NewsDetailPageClient newsId={newsId} />
 }

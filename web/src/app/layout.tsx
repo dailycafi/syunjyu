@@ -1,12 +1,13 @@
 import './globals.css'
 import type { Metadata } from 'next'
-import Sidebar from '@/components/Sidebar'
 import { UserPreferencesProvider } from '@/lib/preferences'
 import { ToastProvider } from '@/components/Toast'
+import { AuthProvider } from '@/lib/auth'
+import AuthenticatedLayout from '@/components/AuthenticatedLayout'
 
 export const metadata: Metadata = {
-  title: 'Syunjyun Agent',
-  description: 'Syunjyun Agent · Culture-aware AI intelligence workspace',
+  title: 'Syunjyu',
+  description: 'Syunjyu · Your AI-powered learning companion',
 }
 
 export default function RootLayout({
@@ -16,20 +17,16 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>
-        <UserPreferencesProvider>
-          <ToastProvider>
-            <div className="flex h-screen overflow-hidden">
-              {/* Sidebar */}
-              <Sidebar />
-
-              {/* Main content */}
-              <main className="flex-1 overflow-y-auto bg-gray-50">
+      <body className="bg-white h-screen w-screen overflow-hidden font-sans antialiased selection:bg-pink-500/30 selection:text-pink-900">
+        <AuthProvider>
+          <UserPreferencesProvider>
+            <ToastProvider>
+              <AuthenticatedLayout>
                 {children}
-              </main>
-            </div>
-          </ToastProvider>
-        </UserPreferencesProvider>
+              </AuthenticatedLayout>
+            </ToastProvider>
+          </UserPreferencesProvider>
+        </AuthProvider>
       </body>
     </html>
   )

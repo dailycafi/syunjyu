@@ -8,6 +8,7 @@ import {
   exportPDF,
   getLocalModels,
 } from '@/lib/api'
+import { config } from '@/lib/config'
 
 export default function SettingsPage() {
   const { showToast } = useToast()
@@ -67,14 +68,14 @@ export default function SettingsPage() {
       await updateSetting(key, value)
       setSettings((prev) => ({ ...prev, [key]: value }))
 
-      // Enforce MiniMax when switching to Remote
+      // Enforce default model when switching to Remote
       if (key === 'model_provider' && value === 'remote') {
-        await updateSetting('remote_provider', 'minimax')
-        await updateSetting('remote_model_name', 'MiniMax-M2')
+        await updateSetting('remote_provider', config.DEFAULT_REMOTE_PROVIDER)
+        await updateSetting('remote_model_name', config.DEFAULT_MODEL_NAME)
         setSettings(prev => ({
             ...prev, 
-            remote_provider: 'minimax',
-            remote_model_name: 'MiniMax-M2'
+            remote_provider: config.DEFAULT_REMOTE_PROVIDER,
+            remote_model_name: config.DEFAULT_MODEL_NAME
         }))
       }
       

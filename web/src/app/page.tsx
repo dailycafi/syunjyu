@@ -114,9 +114,9 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950/80 relative">
-      <div className="container mx-auto px-6 py-12 max-w-6xl">
-        <div className="rounded-3xl bg-white dark:bg-slate-900/70 border border-white/70 dark:border-white/10 shadow-[0_25px_60px_rgba(31,18,53,0.08)] backdrop-blur-xl px-8 py-10 relative overflow-hidden">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950/80 relative pb-20 md:pb-0">
+      <div className="container mx-auto px-3 md:px-6 py-3 md:py-12 max-w-6xl">
+        <div className="rounded-3xl bg-white dark:bg-slate-900/70 border border-white/70 dark:border-white/10 shadow-sm md:shadow-[0_25px_60px_rgba(31,18,53,0.08)] backdrop-blur-xl px-4 md:px-8 py-5 md:py-10 relative overflow-hidden">
           
           {/* Fetching Overlay */}
           {fetching && (
@@ -132,89 +132,125 @@ export default function Home() {
           )}
 
           {/* Header */}
-          <div className="mb-8 animate-fade-in">
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
+          <div className="mb-6 md:mb-8 animate-fade-in space-y-4">
+            {/* Top Row: Logo/Title and Refresh Action */}
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
                   <div
-                    className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg"
+                    className="w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center shadow-md md:shadow-lg shrink-0"
                     style={{
                       background: 'linear-gradient(135deg, var(--lover-rose), var(--lover-butter), var(--lover-sky))',
-                      boxShadow: '0 15px 35px rgba(176, 65, 107, 0.25)',
                     }}
                   >
-                    <span className="text-2xl">📰</span>
+                    <span className="text-xl md:text-2xl">📰</span>
                   </div>
                   <div>
-                    <h1 className="text-2xl lg:text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
+                    <h1 className="text-xl md:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 bg-clip-text text-transparent leading-tight">
                       AI News Feed
                     </h1>
-                    <p className="text-slate-600 dark:text-slate-300 text-sm mt-0.5">
-                      Latest from{' '}
-                      <span className="font-semibold" style={{ color: 'var(--lover-rose)' }}>
-                        54
-                      </span>{' '}
-                      premium sources
+                    <p className="text-slate-500 dark:text-slate-400 text-xs md:text-sm mt-0.5 font-medium">
+                      <span className="hidden md:inline">Latest from </span>
+                      <span className="font-semibold" style={{ color: 'var(--lover-rose)' }}>54</span>
+                      {' '}premium sources
                     </p>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex gap-3 flex-wrap">
-                {/* Filter buttons */}
-                <div className="inline-flex rounded-2xl bg-white/80 dark:bg-slate-900/40 shadow-md p-1 border border-white/60 dark:border-white/10 backdrop-blur">
+                {/* Mobile: Icon button / Desktop: Full button */}
+                <button
+                  onClick={handleFetchNews}
+                  disabled={fetching}
+                  className="md:hidden w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-colors active:scale-95"
+                  aria-label="Refresh"
+                >
+                   <svg className={`w-5 h-5 ${fetching ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
+                
+                {/* Desktop: Full controls */}
+                <div className="hidden md:flex gap-3 flex-wrap">
+                  {/* Filter buttons */}
+                  <div className="inline-flex rounded-2xl bg-white/80 dark:bg-slate-900/40 shadow-md p-1 border border-white/60 dark:border-white/10 backdrop-blur">
+                    <button
+                      onClick={() => setFilter('all')}
+                      className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                        filter === 'all'
+                          ? 'text-slate-900'
+                          : 'text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-white/10'
+                      }`}
+                      style={filter === 'all' ? activeFilterStyle : undefined}
+                    >
+                      All News
+                    </button>
+                    <button
+                      onClick={() => setFilter('starred')}
+                      className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-1.5 ${
+                        filter === 'starred'
+                          ? 'text-slate-900'
+                          : 'text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-white/10'
+                      }`}
+                      style={filter === 'starred' ? activeFilterStyle : undefined}
+                    >
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                      Starred
+                    </button>
+                  </div>
+
+                  {/* Fetch news button */}
+                  <button
+                    onClick={handleFetchNews}
+                    disabled={fetching}
+                    className="btn btn-primary inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <svg className={`w-4 h-4 ${fetching ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    {fetching ? 'Updating...' : 'Refresh'}
+                  </button>
+                </div>
+            </div>
+
+            {/* Mobile Only: Controls Row - Filter Switch */}
+            <div className="flex md:hidden">
+                 <div className="flex bg-slate-100 dark:bg-slate-800/50 p-1 rounded-xl w-full">
                   <button
                     onClick={() => setFilter('all')}
-                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                    className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all duration-200 ${
                       filter === 'all'
-                        ? 'text-slate-900'
-                        : 'text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-white/10'
+                        ? 'bg-white dark:bg-slate-700 text-slate-900 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
                     }`}
-                    style={filter === 'all' ? activeFilterStyle : undefined}
                   >
                     All News
                   </button>
                   <button
                     onClick={() => setFilter('starred')}
-                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-1.5 ${
+                    className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5 ${
                       filter === 'starred'
-                        ? 'text-slate-900'
-                        : 'text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-white/10'
+                        ? 'bg-white dark:bg-slate-700 text-slate-900 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
                     }`}
-                    style={filter === 'starred' ? activeFilterStyle : undefined}
                   >
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
+                    <span className={filter === 'starred' ? 'text-amber-500' : ''}>★</span>
                     Starred
                   </button>
                 </div>
-
-                {/* Fetch news button */}
-                <button
-                  onClick={handleFetchNews}
-                  disabled={fetching}
-                  className="btn btn-primary inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <svg className={`w-4 h-4 ${fetching ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  {fetching ? 'Updating...' : 'Refresh'}
-                </button>
-              </div>
             </div>
             
-            {/* Categories */}
-            <div className="w-full mt-6 overflow-x-auto pb-2">
-              <div className="flex gap-2 min-w-max">
+            {/* Categories Scroll */}
+            <div className="-mx-4 px-4 md:mx-0 md:px-0 overflow-x-auto scrollbar-hide md:mt-6">
+              <div className="flex gap-2 min-w-max pb-1">
                 {NEWS_CATEGORY_FILTERS.map(option => (
                   <button
                     key={option.key}
                     onClick={() => setCategoryFilter(option.key)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all border ${
+                    className={`px-3.5 md:px-4 py-1.5 md:py-2 rounded-full text-xs md:text-sm font-bold md:font-medium tracking-wide transition-all border ${
                       categoryFilter === option.key
                         ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-900'
-                        : 'bg-white/70 text-slate-600 border-slate-200 hover:bg-white dark:bg-white/5 dark:text-slate-200 dark:border-white/10'
+                        : 'bg-slate-50 md:bg-white/70 text-slate-600 border-slate-200 hover:bg-white dark:bg-white/5 dark:text-slate-200 dark:border-white/10'
                     }`}
                   >
                     {option.label}
@@ -223,28 +259,47 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Stats bar */}
+            {/* Stats - Mobile: Mini / Desktop: Card Style */}
             {!loading && (
-              <div className="mt-6 grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div className="bg-white/90 dark:bg-slate-900/50 rounded-2xl p-4 shadow-sm border border-white/70 dark:border-white/10 backdrop-blur flex flex-col justify-center">
-                  <div className="text-2xl font-bold" style={{ color: 'var(--lover-rose)' }}>
-                    {totalCount}
+              <>
+                {/* Mobile Stats */}
+                <div className="grid grid-cols-3 gap-3 pt-2 border-t border-slate-100 dark:border-white/5 md:hidden">
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-slate-900 dark:text-white">{totalCount}</div>
+                    <div className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Articles</div>
                   </div>
-                  <div className="text-sm text-slate-600 dark:text-slate-400 mt-1">Articles</div>
-                </div>
-                <div className="bg-white/90 dark:bg-slate-900/50 rounded-2xl p-4 shadow-sm border border-white/70 dark:border-white/10 backdrop-blur flex flex-col justify-center">
-                  <div className="text-2xl font-bold" style={{ color: 'var(--lover-sky)' }}>
-                    {starredCount}
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-amber-500">{starredCount}</div>
+                    <div className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Saved</div>
                   </div>
-                  <div className="text-sm text-slate-600 dark:text-slate-400 mt-1">Starred</div>
-                </div>
-                <div className="bg-white/90 dark:bg-slate-900/50 rounded-2xl p-4 shadow-sm border border-white/70 dark:border-white/10 backdrop-blur flex flex-col justify-center hidden md:flex">
-                  <div className="text-2xl font-bold" style={{ color: 'var(--lover-lilac)' }}>
-                    54
+                  <div className="text-center border-l border-slate-100 pl-3">
+                     <div className="text-lg font-bold text-indigo-500">54</div>
+                     <div className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Sources</div>
                   </div>
-                  <div className="text-sm text-slate-600 dark:text-slate-400 mt-1">Sources</div>
                 </div>
-              </div>
+                
+                {/* Desktop Stats */}
+                <div className="hidden md:grid md:grid-cols-3 gap-4 mt-6">
+                  <div className="bg-white/90 dark:bg-slate-900/50 rounded-2xl p-4 shadow-sm border border-white/70 dark:border-white/10 backdrop-blur flex flex-col justify-center">
+                    <div className="text-2xl font-bold" style={{ color: 'var(--lover-rose)' }}>
+                      {totalCount}
+                    </div>
+                    <div className="text-sm text-slate-600 dark:text-slate-400 mt-1">Articles</div>
+                  </div>
+                  <div className="bg-white/90 dark:bg-slate-900/50 rounded-2xl p-4 shadow-sm border border-white/70 dark:border-white/10 backdrop-blur flex flex-col justify-center">
+                    <div className="text-2xl font-bold" style={{ color: 'var(--lover-sky)' }}>
+                      {starredCount}
+                    </div>
+                    <div className="text-sm text-slate-600 dark:text-slate-400 mt-1">Starred</div>
+                  </div>
+                  <div className="bg-white/90 dark:bg-slate-900/50 rounded-2xl p-4 shadow-sm border border-white/70 dark:border-white/10 backdrop-blur flex flex-col justify-center">
+                    <div className="text-2xl font-bold" style={{ color: 'var(--lover-lilac)' }}>
+                      54
+                    </div>
+                    <div className="text-sm text-slate-600 dark:text-slate-400 mt-1">Sources</div>
+                  </div>
+                </div>
+              </>
             )}
           </div>
 

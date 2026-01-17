@@ -26,9 +26,16 @@ def init_database():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             email TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
+            display_name TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    
+    # Add display_name column if it doesn't exist (migration)
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN display_name TEXT")
+    except:
+        pass  # Column already exists
 
     # Synced news table (for tracking starred status)
     cursor.execute("""

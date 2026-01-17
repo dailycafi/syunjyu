@@ -7,8 +7,9 @@ import sqlite3
 import os
 from typing import Optional
 from datetime import datetime
+from config import config
 
-DATABASE_PATH = os.path.join(os.path.dirname(__file__), "..", "database.sqlite")
+DATABASE_PATH = os.path.join(os.path.dirname(__file__), "..", config.DATABASE_PATH)
 
 
 def get_connection():
@@ -125,6 +126,24 @@ def init_database():
         cursor.execute("ALTER TABLE phrases ADD COLUMN type TEXT DEFAULT 'vocabulary'")
     if not column_exists(cursor, "phrases", "pronunciation"):
         cursor.execute("ALTER TABLE phrases ADD COLUMN pronunciation TEXT")
+    
+    # Add difficulty level to phrases for user level tracking
+    if not column_exists(cursor, "phrases", "difficulty_level"):
+        cursor.execute("ALTER TABLE phrases ADD COLUMN difficulty_level TEXT")  # A1, A2, B1, B2, C1, C2
+
+    # User vocabulary profile table - tracks user's vocabulary level over time
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS user_vocab_profile (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            estimated_level TEXT DEFAULT 'C1',
+            total_words_saved INTEGER DEFAULT 0,
+            level_distribution TEXT,
+            last_assessed_at TEXT,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
 
     # Article Analysis Cache table (stores expensive AI results)
     cursor.execute("""
@@ -175,12 +194,13 @@ def insert_default_settings():
     cursor = conn.cursor()
 
     defaults = [
-        ("model_provider", "local"),  # local or remote
-        ("local_model_name", "local_medium"),
-        ("remote_provider", "minimax"),
-        ("remote_model_name", "MiniMax-M2"),
-        ("openai_api_key", ""),
-        ("deepseek_api_key", ""),
+        ("model_provider", config.DEFAULT_MODEL_PROVIDER),  # local or remote
+        ("local_model_name", config.LOCAL_MODEL_NAME),
+        ("remote_provider", config.DEFAULT_REMOTE_PROVIDER),
+        ("remote_model_name", config.DEFAULT_MODEL_NAME),
+        ("openai_api_key", config.OPENAI_API_KEY),
+        ("deepseek_api_key", config.DEEPSEEK_API_KEY),
+        ("minimax_api_key", config.MINIMAX_API_KEY),
         ("user_id", ""),
         ("auth_token", ""),
         ("last_sync_time", ""),

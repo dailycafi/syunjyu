@@ -444,16 +444,19 @@ export default function SourceManagementPage() {
   }
 
   return (
-    <div className="px-6 py-10 space-y-10">
-      {/* Header */}
-      <div className="flex justify-between items-start">
-        <div className="space-y-3">
-          <h1 className="text-3xl font-semibold text-primary">AI Source Directory</h1>
-          <p className="text-secondary max-w-3xl">
+    <div className="px-4 md:px-6 py-4 md:py-10 space-y-6 md:space-y-10 pb-20 md:pb-10">
+      {/* Header - Responsive */}
+      <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
+        {/* Title & Description */}
+        <div className="space-y-1 md:space-y-3">
+          <h1 className="text-2xl md:text-3xl font-bold md:font-semibold text-primary">AI Sources</h1>
+          <p className="text-secondary text-sm hidden md:block max-w-3xl">
             Review, group, and curate every AI news input so you stay in control of the sync pipeline.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        
+        {/* Desktop Action Buttons */}
+        <div className="hidden md:flex items-center gap-2">
           <button 
             onClick={handleBatchTest}
             disabled={isBatchTesting || filteredSources.length === 0}
@@ -464,16 +467,78 @@ export default function SourceManagementPage() {
             </svg>
             {isBatchTesting ? 'Testing…' : 'Batch Test'}
           </button>
-        <button 
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="btn btn-primary px-4 py-2 rounded-xl flex items-center gap-2"
-        >
+          <button 
+            onClick={() => setShowAddForm(!showAddForm)}
+            className="btn btn-primary px-4 py-2 rounded-xl flex items-center gap-2"
+          >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
             {showAddForm ? 'Cancel' : 'Add Source'}
-        </button>
+          </button>
         </div>
+        
+        {/* Mobile Add Button (Floating Style) */}
+        <button 
+          onClick={() => setShowAddForm(!showAddForm)}
+          className="md:hidden fixed bottom-24 right-4 z-40 w-14 h-14 rounded-full bg-primary text-white shadow-lg shadow-primary/30 flex items-center justify-center active:scale-95 transition-transform"
+          title={showAddForm ? 'Cancel' : 'Add Source'}
+        >
+            <svg className={`w-7 h-7 transition-transform duration-300 ${showAddForm ? 'rotate-45' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+        </button>
+      </div>
+
+      {/* Search & Batch Test Row - Mobile Compact */}
+      <div className="flex gap-2">
+        <div className="flex-1 bg-panel rounded-xl md:rounded-2xl border border-soft px-3 md:px-4 py-2.5 md:py-3 flex items-center gap-2 md:gap-3">
+          <span className="text-secondary shrink-0">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
+            </svg>
+          </span>
+          <input
+            type="text"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search sources or domains"
+            className="bg-transparent flex-1 outline-none text-primary font-medium text-sm min-w-0"
+          />
+          {query && (
+            <button className="text-secondary hover:opacity-80 p-1" onClick={() => setQuery('')}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+        
+        {/* Mobile Batch Test Button */}
+        <button 
+          onClick={handleBatchTest}
+          disabled={isBatchTesting || filteredSources.length === 0}
+          className="md:hidden btn bg-white border border-soft text-secondary p-2.5 rounded-xl flex items-center justify-center disabled:opacity-50 hover:bg-gray-50 shrink-0 w-11"
+          title="Batch Test Connections"
+        >
+           {isBatchTesting ? (
+               <svg className="w-5 h-5 animate-spin text-primary" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+               </svg>
+           ) : (
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+           )}
+        </button>
+        
+        {/* Desktop Reset Button */}
+        {(query || selectedCategory !== 'all') && (
+          <button className="hidden md:block btn btn-secondary" onClick={() => { setQuery(''); setSelectedCategory('all') }}>
+            Reset
+          </button>
+        )}
       </div>
       
       {/* Add Form */}

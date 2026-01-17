@@ -55,6 +55,8 @@ module.exports = {
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
         display: ['Cal Sans', 'Inter', 'system-ui', 'sans-serif'],
+        brand: ['Outfit', 'Inter', 'system-ui', 'sans-serif'],
+        tagline: ['Sora', 'Inter', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
         'sm': '0 1px 2px 0 rgb(0 0 0 / 0.05)',

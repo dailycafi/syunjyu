@@ -9,6 +9,7 @@ from db import get_connection
 from model_local import generate_local_async
 from model_remote import generate_remote
 import db
+from config import config
 
 
 CONCEPT_EXTRACTION_PROMPT = """You are an AI expert tasked with extracting key AI-related concepts and terminology from a news article.
@@ -203,22 +204,24 @@ async def auto_extract_concepts_for_news(
         List of extracted concepts
     """
     if settings is None:
-        # Load settings from database
-        model_provider = db.get_setting("model_provider") or "local"
-        local_model = db.get_setting("local_model_name") or "local_medium"
-        remote_provider = db.get_setting("remote_provider") or "openai"
-        remote_model = db.get_setting("remote_model_name") or "gpt-3.5-turbo"
+        # Load settings from database, fallback to config defaults
+        model_provider = db.get_setting("model_provider") or config.DEFAULT_MODEL_PROVIDER
+        local_model = db.get_setting("local_model_name") or config.LOCAL_MODEL_NAME
+        remote_provider = db.get_setting("remote_provider") or config.DEFAULT_REMOTE_PROVIDER
+        remote_model = db.get_setting("remote_model_name") or config.DEFAULT_MODEL_NAME
         api_key = ""
 
         if remote_provider == "openai":
-            api_key = db.get_setting("openai_api_key") or ""
+            api_key = db.get_setting("openai_api_key") or config.OPENAI_API_KEY
         elif remote_provider == "deepseek":
-            api_key = db.get_setting("deepseek_api_key") or ""
+            api_key = db.get_setting("deepseek_api_key") or config.DEEPSEEK_API_KEY
+        elif remote_provider == "minimax":
+            api_key = db.get_setting("minimax_api_key") or config.MINIMAX_API_KEY
     else:
-        model_provider = settings.get("model_provider", "local")
-        local_model = settings.get("local_model_name", "local_medium")
-        remote_provider = settings.get("remote_provider", "openai")
-        remote_model = settings.get("remote_model_name", "gpt-3.5-turbo")
+        model_provider = settings.get("model_provider", config.DEFAULT_MODEL_PROVIDER)
+        local_model = settings.get("local_model_name", config.LOCAL_MODEL_NAME)
+        remote_provider = settings.get("remote_provider", config.DEFAULT_REMOTE_PROVIDER)
+        remote_model = settings.get("remote_model_name", config.DEFAULT_MODEL_NAME)
         api_key = settings.get("api_key", "")
 
     use_local = model_provider == "local"

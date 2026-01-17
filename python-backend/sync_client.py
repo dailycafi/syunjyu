@@ -51,6 +51,7 @@ class SyncClient:
                 # Store credentials locally
                 set_setting("user_id", str(data["user_id"]))
                 set_setting("auth_token", data["access_token"])
+                set_setting("user_email", email)
 
                 return data
             except httpx.HTTPStatusError as e:
@@ -81,6 +82,7 @@ class SyncClient:
                 # Store credentials locally
                 set_setting("user_id", str(data["user_id"]))
                 set_setting("auth_token", data["access_token"])
+                set_setting("user_email", email)
 
                 return data
             except httpx.HTTPStatusError as e:
@@ -88,11 +90,135 @@ class SyncClient:
             except Exception as e:
                 raise SyncError(f"Login error: {str(e)}")
 
-    def logout(self):
+    def logout(self, clear_local_data: bool = False):
         """Logout and clear local credentials"""
+        # Get user_id before clearing it
+        user_id_str = get_setting("user_id")
+        user_id = int(user_id_str) if user_id_str and user_id_str.isdigit() else None
+        
+        # Clear credentials
         set_setting("user_id", "")
         set_setting("auth_token", "")
         set_setting("last_sync_time", "")
+        set_setting("user_email", "")
+        set_setting("user_display_name", "")
+        
+        if clear_local_data and user_id:
+            self.clear_local_data(user_id)
+    
+    def clear_local_data(self, user_id: Optional[int] = None):
+        """Clear local user data (starred news, concepts, phrases) for specific user"""
+        if user_id is None:
+            # Get current user ID before logout clears it
+            uid = get_setting("user_id")
+            user_id = int(uid) if uid and uid.isdigit() else None
+        
+        if user_id is None:
+            return  # No user to clear data for
+        
+        conn = get_connection()
+        cursor = conn.cursor()
+        try:
+            # Reset starred/hidden status for this user's news
+            cursor.execute(
+                "UPDATE news SET starred = 0, hidden = 0, user_id = NULL WHERE user_id = ?",
+                (user_id,)
+            )
+            # Delete this user's concepts
+            cursor.execute("DELETE FROM concepts WHERE user_id = ?", (user_id,))
+            # Delete this user's phrases
+            cursor.execute("DELETE FROM phrases WHERE user_id = ?", (user_id,))
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            raise SyncError(f"Failed to clear local data: {str(e)}")
+        finally:
+            conn.close()
+
+    async def get_profile(self) -> Dict:
+        """Get user profile from server"""
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            try:
+                response = await client.get(
+                    f"{self.server_url}/user/profile",
+                    headers=self.get_auth_headers()
+                )
+                response.raise_for_status()
+                return response.json()
+            except httpx.HTTPStatusError as e:
+                raise SyncError(f"Failed to get profile: {e.response.text}")
+            except Exception as e:
+                raise SyncError(f"Profile error: {str(e)}")
+
+    async def update_profile(self, display_name: Optional[str] = None) -> Dict:
+        """Update user profile"""
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            try:
+                response = await client.put(
+                    f"{self.server_url}/user/profile",
+                    json={"display_name": display_name},
+                    headers=self.get_auth_headers()
+                )
+                response.raise_for_status()
+                if display_name:
+                    set_setting("user_display_name", display_name)
+                return response.json()
+            except httpx.HTTPStatusError as e:
+                raise SyncError(f"Failed to update profile: {e.response.text}")
+            except Exception as e:
+                raise SyncError(f"Update error: {str(e)}")
+
+    async def change_password(self, current_password: str, new_password: str) -> Dict:
+        """Change user password"""
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            try:
+                response = await client.post(
+                    f"{self.server_url}/user/change-password",
+                    json={
+                        "current_password": current_password,
+                        "new_password": new_password
+                    },
+                    headers=self.get_auth_headers()
+                )
+                response.raise_for_status()
+                return response.json()
+            except httpx.HTTPStatusError as e:
+                raise SyncError(f"Password change failed: {e.response.text}")
+            except Exception as e:
+                raise SyncError(f"Password change error: {str(e)}")
+
+    async def verify_password(self, password: str) -> bool:
+        """Verify user password (for account switching)"""
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            try:
+                response = await client.post(
+                    f"{self.server_url}/user/verify-password",
+                    json={"password": password},
+                    headers=self.get_auth_headers()
+                )
+                response.raise_for_status()
+                return True
+            except httpx.HTTPStatusError:
+                return False
+            except Exception:
+                return False
+
+    async def delete_account(self) -> Dict:
+        """Delete user account"""
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            try:
+                response = await client.delete(
+                    f"{self.server_url}/user/account",
+                    headers=self.get_auth_headers()
+                )
+                response.raise_for_status()
+                # Clear local data after account deletion
+                self.logout(clear_local_data=True)
+                return response.json()
+            except httpx.HTTPStatusError as e:
+                raise SyncError(f"Account deletion failed: {e.response.text}")
+            except Exception as e:
+                raise SyncError(f"Account deletion error: {str(e)}")
 
     async def upload_changes(self) -> Dict:
         """
@@ -269,6 +395,7 @@ class SyncClient:
         return {
             "logged_in": bool(get_setting("auth_token")),
             "user_id": get_setting("user_id"),
+            "email": get_setting("user_email"),
             "last_sync": get_setting("last_sync_time"),
-            "auto_sync": get_setting("auto_sync_enabled") == "true",
+            "auto_sync": get_setting("auto_sync_enabled") != "false",
         }

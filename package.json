@@ -5,17 +5,19 @@
   "scripts": {
     "dev": "npm run dev:app",
     "dev:app": "concurrently -k -p \"[{name}]\" -n \"WEB,APP\" -c \"bgBlue.bold,bgMagenta.bold\" \"npm run dev:web\" \"wait-on tcp:127.0.0.1:3500 && npm run tauri dev\"",
+    "dev:app:demo": "concurrently -k -p \"[{name}]\" -n \"WEB,APP\" -c \"bgBlue.bold,bgMagenta.bold\" \"npm run dev:web:demo\" \"wait-on tcp:127.0.0.1:3500 && npm run tauri dev\"",
     "dev:web": "cd web && npm run dev",
     "dev:web:demo": "cd web && npm run dev:demo",
-    "dev:browser": "concurrently -n \"WEB,BACKEND,BROWSER\" -c \"bgBlue.bold,bgYellow.bold,bgGreen.bold\" \"npm run dev:web\" \"npm run dev:backend\" \"wait-on tcp:127.0.0.1:3500 && open http://127.0.0.1:3500\"",
-    "dev:demo": "concurrently -n \"WEB,BACKEND,BROWSER\" -c \"bgBlue.bold,bgYellow.bold,bgGreen.bold\" \"npm run dev:web:demo\" \"npm run dev:backend\" \"wait-on tcp:127.0.0.1:3500 && open http://127.0.0.1:3500\"",
-    "dev:backend": "cd python-backend && python3 app.py",
+    "dev:browser": "concurrently -n \"WEB,BACKEND,SYNC,BROWSER\" -c \"bgBlue.bold,bgYellow.bold,bgCyan.bold,bgGreen.bold\" \"npm run dev:web\" \"npm run dev:backend\" \"npm run dev:sync\" \"wait-on tcp:127.0.0.1:3500 && open http://127.0.0.1:3500\"",
+    "dev:demo": "concurrently -n \"WEB,BACKEND,SYNC,BROWSER\" -c \"bgBlue.bold,bgYellow.bold,bgCyan.bold,bgGreen.bold\" \"npm run dev:web:demo\" \"npm run dev:backend\" \"npm run dev:sync\" \"wait-on tcp:127.0.0.1:3500 && open http://127.0.0.1:3500\"",
+    "dev:backend": "cd python-backend && conda run -n syunjyu python app.py",
+    "dev:sync": "cd sync-server && conda run -n syunjyu python server.py",
     "build": "npm run build:web && npm run tauri build",
     "build:web": "cd web && npm run build",
     "tauri": "cd src-tauri && tauri",
     "setup": "npm run setup:web && npm run setup:backend",
     "setup:web": "cd web && npm install",
-    "setup:backend": "cd python-backend && pip install -r requirements.txt",
+    "setup:backend": "cd python-backend && conda run -n syunjyu pip install -r requirements.txt",
     "setup:sync": "cd sync-server && pip install -r requirements.txt"
   },
   "devDependencies": {

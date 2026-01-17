@@ -16,6 +16,7 @@ from curl_cffi.requests import AsyncSession
 
 from db import get_connection, get_setting
 from model_remote import RemoteModelError, generate_remote
+from config import config
 
 # 50+ AI News Sources (Same list as before)
 NEWS_SOURCES = [
@@ -120,14 +121,69 @@ def init_news_sources_db():
 LLM_INPUT_LIMIT = 30000
 
 
+import re as regex_module
+
+
+def clean_extracted_text(text: str) -> str:
+    """
+    Post-process extracted text to remove common junk patterns that LLM might miss.
+    This includes "Got a Tip?" blocks, separator lines, and other boilerplate.
+    """
+    if not text:
+        return text
+    
+    # Patterns to remove (case-insensitive where appropriate)
+    junk_patterns = [
+        # "Got a Tip?" style blocks with surrounding content
+        r'\|\s*Got a Tip\?\s*\|?\s*\|?-+\|?\s*\|[^|]+\|?',
+        # Simpler "Got a Tip?" lines
+        r'^\s*\|?\s*Got a Tip\?\s*\|?\s*$',
+        r'^\s*\|?\s*Got a tip\?\s*\|?\s*$',
+        # Separator lines like |---| or |---|---|
+        r'^\s*\|[-\s|]+\|\s*$',
+        # Lines that are just pipes with content asking for tips/contact
+        r'^\s*\|[^|]*(?:contact|tip|reporter|signal|securely)[^|]*\|?\s*$',
+        # "Are you a current or former..." style lines
+        r'^.*Are you a current or former.*$',
+        # Contact reporter lines
+        r'^.*[Cc]ontact the reporter[s]? securely.*$',
+        # Lines ending with lone pipe
+        r'\s*\|\s*$',
+        # Lines starting with lone pipe (not tables)
+        r'^\s*\|\s+(?![^\n]*\|)',
+    ]
+    
+    lines = text.split('\n')
+    cleaned_lines = []
+    
+    for line in lines:
+        should_remove = False
+        for pattern in junk_patterns:
+            if regex_module.search(pattern, line, regex_module.IGNORECASE | regex_module.MULTILINE):
+                should_remove = True
+                break
+        
+        if not should_remove:
+            # Also clean trailing pipes from lines
+            line = regex_module.sub(r'\s*\|\s*$', '', line)
+            cleaned_lines.append(line)
+    
+    result = '\n'.join(cleaned_lines)
+    
+    # Remove multiple consecutive blank lines
+    result = regex_module.sub(r'\n{3,}', '\n\n', result)
+    
+    return result.strip()
+
+
 async def extract_content_with_llm(url: str, html_content: str, candidate_text: Optional[str]) -> Optional[str]:
     """
     Use MiniMax LLM to clean and extract main content from HTML.
     Always returns plain text paragraphs, removing menus/ads.
     """
-    provider = get_setting("analysis_provider") or "minimax"
-    model = get_setting("analysis_model") or "MiniMax-M2"
-    api_key = get_setting("minimax_api_key") or ""
+    provider = get_setting("analysis_provider") or config.DEFAULT_ANALYSIS_PROVIDER
+    model = get_setting("analysis_model") or config.DEFAULT_MODEL_NAME
+    api_key = get_setting("minimax_api_key") or config.MINIMAX_API_KEY
 
     if provider != "minimax":
         provider = "minimax"
@@ -220,6 +276,9 @@ Text to extract:
         result = refined.strip()
         if "ERROR: No content" in result:
             return None
+        
+        # Post-process: Clean up common junk patterns that LLM might miss
+        result = clean_extracted_text(result)
             
         return result
         

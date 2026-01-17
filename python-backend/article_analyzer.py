@@ -10,6 +10,8 @@ import httpx
 
 import db
 from model_remote import generate_remote
+from config import config
+from user_level import get_vocabulary_prompt_context, update_word_difficulty
 
 AnalysisScope = Literal["summary", "structure", "vocabulary"]
 
@@ -61,8 +63,8 @@ Requirements:
 - Return ONLY valid JSON with double quotes and no markdown fences.
 """
 
-STRUCTURE_PROMPT_ENGLISH = """You are an expert content strategist creating a clear, hierarchical mind map of the article.
-Your goal is to visualize the logical flow in a simple, easy-to-understand TREE structure.
+STRUCTURE_PROMPT_ENGLISH = """You are an expert analyst creating a "Deep Dive" briefing of the article, similar to a NotebookLM audio overview but in structured text.
+Your goal is to synthesize the information into a clear, hierarchical knowledge graph that tells the complete story.
 
 Article Title: {title}
 Article Content:
@@ -73,79 +75,119 @@ Return JSON:
   "structure": {{
     "root": {{
       "id": "root",
-      "label": "The Central Theme",
+      "label": "The Big Picture",
       "type": "conclusion",
-      "summary": "A single sentence summarizing the core message of the entire article.",
+      "summary": "A comprehensive synthesis of the article's core narrative and significance (1 sentence).",
       "children": [
         {{
-          "id": "SEC1",
-          "label": "Main Point 1",
+          "id": "THEME1",
+          "label": "Key Insight / Core Argument",
           "type": "argument",
-          "summary": "The first key takeaway or major section.",
+          "summary": "The most important takeaway or central tension in the story.",
           "children": [
             {{
-              "id": "DET1",
-              "label": "Supporting Detail",
+              "id": "EVID1",
+              "label": "Evidence / Detail",
               "type": "evidence",
-              "summary": "Specific fact, example, or data point supporting Main Point 1.",
+              "summary": "Specific data, quote, or event that supports this insight.",
               "children": []
             }}
           ]
+        }},
+        {{
+          "id": "THEME2",
+          "label": "Context & Background",
+          "type": "logic",
+          "summary": "Why is this happening now? Historical context or market drivers.",
+          "children": []
+        }},
+        {{
+          "id": "THEME3",
+          "label": "Implications / Future",
+          "type": "insight",
+          "summary": "What this means for the future, the industry, or society.",
+          "children": []
         }}
       ]
     }},
     "takeaways": [
-      "Insight 1: Why this matters",
-      "Insight 2: Future outlook"
+      "Provocative Question: A question to prompt deeper thinking",
+      "Strategic Takeaway: A high-level conclusion",
+      "Key Connection: How this relates to broader trends"
     ]
   }}
 }}
 
 Requirements:
-1. **Simplicity is Key**: Do not create a complex web. Create a clear HIERARCHY (Root -> Main Points -> Details).
-2. **Structure**:
-   - **Root**: The main topic of the article.
-   - **Level 1 (Children of Root)**: Identify 3-5 Distinct Main Points (Arguments, Themes, or Steps).
-   - **Level 2 (Children of Level 1)**: Add 2-3 Supporting Details (Evidence, Examples, or Logic) for each Main Point.
-   - **Max Depth**: Keep it to 3 levels (Root -> Main -> Detail) to ensure clarity.
+1. **NotebookLM Style**: Go beyond simple summarization. Connect the dots. Identify the "why". Find the tension or the "hook".
+2. **Hierarchy**:
+   - **Root**: The "Deep Dive" Theme.
+   - **Level 1**: The Pillars of the story (The "What", The "Why", The "So What").
+   - **Level 2**: Supporting details (Numbers, Quotes, Specific Examples).
 3. **Node Content**:
-   - **label**: Very concise (2-6 words). Like a chapter title.
-   - **summary**: Clear, natural English (10-25 words). Explains *what* and *why*.
-   - **type**: Use "conclusion" for Root. Use "argument" for Main Points. Use "evidence", "logic", or "insight" for Details.
-4. **Takeaways**: Provide 2-3 high-level synthesized insights in the "takeaways" list.
+   - **label**: Catchy but clear (e.g., "The Hidden Cost", "The Turning Point").
+   - **summary**: Conversational but insightful English.
+4. **Takeaways**: Include at least one "Question for Reflection" and one "Strategic Insight".
 5. **Strict JSON**: Return ONLY valid JSON. No markdown, no comments.
 """
 
-VOCABULARY_PROMPT_ENGLISH = """You are an expert linguistic consultant for advanced English majors.
-Your goal is to extract sophisticated, high-level vocabulary (CEFR C1/C2, GRE, LSAT level) from the article.
+VOCABULARY_PROMPT_ENGLISH = """You are an expert linguistic consultant helping English learners expand their vocabulary.
+Your goal is to extract challenging vocabulary from the article based on the user's proficiency level.
 
 Article Title: {title}
 Article Content:
 {content}
+
+{user_level_context}
 
 Return JSON:
 {{
   "vocabulary": [
     {{
         "term": "Word or phrase",
-        "pronunciation": "IPA phonetic transcription",
+        "pronunciation": "IPA phonetic transcription", 
         "definition": "Professional dictionary-style definition in English",
-        "example": "A comprehensive example sentence demonstrating usage (can be from article or generated)"
+        "example": "A comprehensive example sentence demonstrating usage (can be from article or generated)",
+        "difficulty": "CEFR level (A1/A2/B1/B2/C1/C2)"
     }},
     ...
   ]
 }}
 
-Requirements:
-- Provide 8-12 terms that are challenging even for native speakers or advanced learners.
-- Focus on rare words, nuanced academic terms, literary expressions, or complex idiomatic phrases found in the text.
-- **CRITICAL: Do NOT select common or intermediate words (CEFR A1-B2).**
-- **CRITICAL: Do NOT select common technical terms, proper nouns, or business buzzwords (e.g., "API", "blockchain", "enterprise", "data residency") unless they have a distinct, non-technical literary usage.**
-- Prioritize abstract nouns, sophisticated adjectives, and verbs over concrete technical nouns.
-- "pronunciation" must use standard IPA (e.g., /ˌdʒen.ə.rə.tɪv/).
-- "definition" should be precise, professional, and comprehensive (referencing Oxford/Cambridge style).
-- "example" must be a full, complex sentence (at least 15 words) that clearly contextualizes the term.
-- Return ONLY valid JSON.
+**VOCABULARY SELECTION GUIDELINES:**
+
+1. **Difficulty Assessment**: Accurately assess each word's CEFR level:
+   - A1-A2: Basic everyday words (the, go, happy, eat)
+   - B1: Common but not basic (achieve, opportunity, significant)
+   - B2: Upper-intermediate (comprehensive, substantial, innovative)
+   - C1: Advanced (ubiquitous, paradigm, eloquent, pragmatic, albeit)
+   - C2: Proficient/Near-native (obfuscate, perspicacious, idiosyncratic, ephemeral)
+
+2. **Include ALL types of challenging vocabulary:**
+   - Literary/academic words (e.g., "ameliorate", "ephemeral", "ubiquitous")
+   - Technical terms with precise meanings (e.g., "idempotent", "heuristic", "stochastic")
+   - Business/professional vocabulary (e.g., "amortize", "fiduciary", "synergistic")
+   - Idiomatic expressions and phrasal verbs with non-obvious meanings
+   - Words with nuanced connotations
+
+3. **MUST REJECT:**
+   - Words that are below the user's recommended difficulty range
+   - Extremely common words that any intermediate learner knows
+   - Proper nouns, brand names, or acronyms (unless they have become common vocabulary)
+   - Words that are simple even if they look long
+
+4. **Quality over quantity**: 
+   - Provide 6-10 high-quality terms
+   - If the article lacks challenging vocabulary at the recommended level, return fewer items
+   - Do NOT pad with easier words just to fill the list
+
+5. **Format requirements:**
+   - "pronunciation": Standard IPA (e.g., /ˌdʒen.ə.rə.tɪv/)
+   - "definition": Oxford/Cambridge style, precise and comprehensive
+   - "example": Full sentence (15+ words) demonstrating sophisticated usage
+   - "difficulty": Must accurately reflect the CEFR level
+
+Return ONLY valid JSON.
 """
 
 # =============================================================================
@@ -170,7 +212,7 @@ Requirements:
 - Return ONLY valid JSON with double quotes and no markdown fences.
 """
 
-STRUCTURE_PROMPT_TECH = """You are a systems architect creating a structured breakdown of a technical article.
+STRUCTURE_PROMPT_TECH = """You are a systems architect and tech strategist creating a structured Deep Dive of a technical article.
 Visualize the information as a clear logical tree, separating the core concept from its components and implications.
 
 Article Title: {title}
@@ -182,13 +224,13 @@ Return JSON:
   "structure": {{
     "root": {{
       "id": "root",
-      "label": "Core Tech/Concept",
+      "label": "Technical Thesis",
       "type": "conclusion",
-      "summary": "The main technology or strategic thesis of the article.",
+      "summary": "The main technology or strategic thesis of the article (The 'Big Idea').",
       "children": [
         {{
           "id": "COMP1",
-          "label": "Key Component / Driver",
+          "label": "Core Component / Driver",
           "type": "argument",
           "summary": "A major part of the system or market force.",
           "children": [
@@ -200,12 +242,20 @@ Return JSON:
               "children": []
             }}
           ]
+        }},
+        {{
+          "id": "IMPL1",
+          "label": "Strategic Implication",
+          "type": "logic",
+          "summary": "Why this matters to the broader ecosystem.",
+          "children": []
         }}
       ]
     }},
     "takeaways": [
-      "Critical technical insight 1",
-      "Market implication 2"
+      "Critical technical insight: ...",
+      "Market opportunity/risk: ...",
+      "Unresolved technical challenge: ..."
     ]
   }}
 }}
@@ -213,7 +263,7 @@ Return JSON:
 Requirements:
 1. **Clear Logical Flow**: Organize as Problem -> Solution -> Details, or Technology -> Features -> Impact.
 2. **Structure**:
-   - **Root**: The central subject.
+   - **Root**: The central subject / thesis.
    - **Level 1**: 3-5 Major Components, Steps, or Strategic Pillars.
    - **Level 2**: Supporting details, specs, or data for each component.
    - **Avoid Clutter**: Limit depth to 3 levels.
@@ -221,11 +271,12 @@ Requirements:
    - **label**: Precise and technical (2-6 words).
    - **summary**: High information density (15-30 words).
    - **type**: Use "conclusion" for Root. "argument" for major components. "evidence", "logic", or "insight" for details.
-4. **Takeaways**: 2-3 sentences synthesizing the "So What?" for a technical audience.
+4. **Takeaways**: 2-3 sentences synthesizing the "So What?" for a technical audience. Include risks or opportunities.
 5. **Strict JSON**: Return ONLY valid JSON.
 """
 
-VOCABULARY_PROMPT_TECH = """You are a technical glossary expert.
+VOCABULARY_PROMPT_TECH = """You are a senior AI/ML researcher creating a glossary for fellow professionals.
+Your goal is to extract ADVANCED technical concepts that even experienced engineers might need to look up.
 
 Article Title: {title}
 Article Content:
@@ -235,20 +286,43 @@ Return JSON:
 {{
   "vocabulary": [
     {{
-        "term": "Technical Term / Acronym",
+        "term": "Technical Term / Concept",
         "pronunciation": "IPA (if applicable) or empty string",
-        "definition": "Precise technical definition (IEEE/ISO style)",
-        "example": "A detailed technical sentence showing correct usage in context"
+        "definition": "Precise technical definition with context (IEEE/ACM style)",
+        "example": "A detailed technical sentence showing correct usage in context",
+        "category": "One of: architecture, algorithm, methodology, concept, metric, protocol"
     }},
     ...
   ]
 }}
 
-Requirements:
-- Extract 8-12 key technical terms, acronyms, or industry jargon.
-- "definition" should be technically accurate, specific, and professional.
-- "example" should be substantial (15+ words) and technically sound.
-- Return ONLY valid JSON.
+**STRICT FILTERING REQUIREMENTS:**
+
+1. **Expertise Level Filter**: ONLY include terms that require specialized knowledge. Target audience is senior engineers/researchers.
+
+2. **MUST REJECT these categories (too basic for tech professionals):**
+   - Generic programming terms: data, code, function, class, object, variable, API, SDK, database, server, client, framework, library, module, package
+   - Basic ML terms: model, training, testing, accuracy, loss, layer, network, neural, deep learning, machine learning, AI, dataset, feature, label
+   - Common DevOps terms: deploy, build, test, CI/CD, Docker, Kubernetes, cloud, AWS, Azure, GCP, container
+   - Generic software terms: scalable, robust, efficient, optimize, configure, integrate, implement, automate
+   - Business buzzwords: enterprise, platform, solution, ecosystem, transformation, agile, lean
+
+3. **PREFER these categories:**
+   - **Novel architectural patterns**: e.g., "mixture of experts", "sparse attention", "ring attention"
+   - **Cutting-edge algorithms**: e.g., "direct preference optimization (DPO)", "constitutional AI", "chain-of-thought prompting"
+   - **Advanced concepts**: e.g., "emergent capabilities", "in-context learning", "mechanistic interpretability", "superposition"
+   - **Specialized metrics**: e.g., "perplexity", "BLEU score", "ROUGE-L", "calibration error"
+   - **Research methodologies**: e.g., "ablation study", "scaling laws", "compute-optimal training"
+   - **Industry-specific protocols**: e.g., "RLHF", "constitutional AI", "red-teaming"
+
+4. **Quality over quantity**: If the article lacks truly advanced technical concepts, return fewer items (even 3-5 is fine). Do NOT pad with basic terms.
+
+5. **Format requirements:**
+   - "definition": IEEE/ACM style, technically precise, include mathematical intuition if applicable
+   - "example": Substantial (15+ words), technically accurate, shows real-world application
+   - "category": Helps reader understand the type of concept
+
+Return ONLY valid JSON.
 """
 
 PROMPT_REGISTRY = {
@@ -267,13 +341,18 @@ PROMPT_REGISTRY = {
 
 async def analyze_article(
     news_id: int,
-    provider: str = "minimax",
-    model: str = "MiniMax-M2",
+    provider: str = None,
+    model: str = None,
     api_key: str = "",
     scope: AnalysisScope = "summary",
     user_mode: str = "english_learner",
     base_url: str = None,
 ) -> Dict:
+    # Use config defaults if not provided
+    if provider is None:
+        provider = config.DEFAULT_REMOTE_PROVIDER
+    if model is None:
+        model = config.DEFAULT_MODEL_NAME
     """
     Analyze an article for a specific scope (summary, structure, vocabulary).
     """
@@ -332,9 +411,26 @@ async def analyze_article(
     truncated_content = content[:20000]  # Increased limit for better context
 
     prompt_template = PROMPT_REGISTRY[user_mode][scope]
-    prompt = prompt_template.format(title=title, content=truncated_content)
     
-    system_prompt = "You are a precise teaching assistant for advanced English learners."
+    # For vocabulary scope in English learner mode, inject user level context
+    if scope == "vocabulary" and user_mode == "english_learner":
+        user_id = db.get_setting("user_id")
+        user_id = int(user_id) if user_id and str(user_id).isdigit() else None
+        user_level_context = get_vocabulary_prompt_context(user_id)
+        prompt = prompt_template.format(
+            title=title, 
+            content=truncated_content,
+            user_level_context=user_level_context
+        )
+    else:
+        # For other prompts, use empty context or default
+        prompt = prompt_template.format(
+            title=title, 
+            content=truncated_content,
+            user_level_context=""  # Will be ignored if not in template
+        )
+    
+    system_prompt = "You are a precise teaching assistant for English learners, adapting to their proficiency level."
     if user_mode == "ai_learner":
         system_prompt = "You are a technology industry analyst."
 
@@ -348,6 +444,9 @@ async def analyze_article(
             system_prompt=system_prompt,
             base_url=base_url,
         )
+        
+        # Debug: Log raw response
+        print(f"[DEBUG] Raw AI response (first 500 chars): {response_text[:500] if response_text else 'EMPTY'}")
 
         # Robust JSON extraction
         # Try to find the largest JSON object
@@ -365,21 +464,26 @@ async def analyze_article(
                 if cleaned.endswith("```"):
                     cleaned = cleaned[:-3]
                 analysis_data = json.loads(cleaned)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+             print(f"[DEBUG] JSON parse error: {e}")
              # Second attempt: aggressive cleanup
              try:
                  # Find first { and last }
                  start = response_text.find('{')
                  end = response_text.rfind('}') + 1
-                 if start != -1 and end != -1:
-                     analysis_data = json.loads(response_text[start:end])
+                 if start != -1 and end != 0:
+                     json_candidate = response_text[start:end]
+                     print(f"[DEBUG] Trying to parse: {json_candidate[:300]}...")
+                     analysis_data = json.loads(json_candidate)
                  else:
-                     raise Exception("No JSON found")
-             except:
+                     raise Exception("No JSON found in response")
+             except Exception as parse_err:
+                 print(f"[DEBUG] Final parse attempt failed: {parse_err}")
+                 print(f"[DEBUG] Full response: {response_text}")
                  return {
                     "scope": scope,
                     "error": "Error parsing AI response.",
-                    "raw_response": response_text,
+                    "raw_response": response_text[:2000] if response_text else "Empty response",
                  }
         
         # Post-process vocabulary to fix phonetics and validate existence
