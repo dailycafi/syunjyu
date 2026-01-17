@@ -64,10 +64,12 @@ const fetchNewsIdsFromApi = async (limit: number): Promise<string[]> => {
 }
 
 export async function generateStaticParams(): Promise<NewsIdParam[]> {
-  // In CI/build environment without backend, return empty array for dynamic rendering
+  // In CI/build environment without backend, return placeholder IDs
+  // These pages will show "not found" but the build will succeed
   if (process.env.CI || process.env.GITHUB_ACTIONS) {
-    console.log('[news/[id]] generateStaticParams: CI environment detected, using dynamic rendering')
-    return []
+    console.log('[news/[id]] generateStaticParams: CI environment detected, using placeholder IDs')
+    // Return a placeholder - actual news will be fetched client-side
+    return [{ id: '0' }]
   }
 
   const envIds = getStaticNewsIdsFromEnv()
@@ -78,11 +80,18 @@ export async function generateStaticParams(): Promise<NewsIdParam[]> {
   const configuredLimit = Number(process.env.NEXT_PUBLIC_STATIC_NEWS_LIMIT)
   const limit = Number.isFinite(configuredLimit) && configuredLimit > 0 ? configuredLimit : DEFAULT_STATIC_NEWS_LIMIT
   const ids = await fetchNewsIdsFromApi(limit)
+  
+  // Ensure at least one ID is returned for static export
+  if (ids.length === 0) {
+    return [{ id: '0' }]
+  }
+  
   return ids.map((id) => ({ id }))
 }
 
-// Allow dynamic paths that weren't generated at build time
-export const dynamicParams = true
+// For static export, dynamicParams must be false
+// All paths must be generated at build time via generateStaticParams
+export const dynamicParams = false
 
 export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
   const { id } = await params
