@@ -5,11 +5,66 @@ Handles all database initialization and table management
 
 import sqlite3
 import os
+import sys
 from typing import Optional
 from datetime import datetime
 from config import config
 
-DATABASE_PATH = os.path.join(os.path.dirname(__file__), "..", config.DATABASE_PATH)
+
+def is_bundled_app():
+    """Check if running inside a bundled application"""
+    # Check for PyInstaller frozen attribute
+    if getattr(sys, 'frozen', False):
+        return True
+    
+    # Check if running inside a .app bundle (macOS Tauri)
+    current_path = os.path.abspath(__file__)
+    if '.app/Contents/' in current_path:
+        return True
+    
+    # Check if running inside Program Files (Windows)
+    if sys.platform == 'win32' and 'Program Files' in current_path:
+        return True
+    
+    return False
+
+
+def get_data_directory():
+    """Get the appropriate data directory for the current platform"""
+    # Check if running in a bundled app (Tauri/PyInstaller)
+    if is_bundled_app():
+        # Running in a bundle - use user data directory
+        if sys.platform == 'darwin':
+            # macOS: ~/Library/Application Support/AI Daily/
+            data_dir = os.path.expanduser("~/Library/Application Support/AI Daily")
+        elif sys.platform == 'win32':
+            # Windows: %APPDATA%/AI Daily/
+            data_dir = os.path.join(os.environ.get('APPDATA', ''), 'AI Daily')
+        else:
+            # Linux: ~/.local/share/AI Daily/
+            data_dir = os.path.expanduser("~/.local/share/AI Daily")
+    else:
+        # Development mode: use project root
+        data_dir = os.path.join(os.path.dirname(__file__), "..")
+    
+    # Ensure directory exists
+    os.makedirs(data_dir, exist_ok=True)
+    return data_dir
+
+
+def get_database_path():
+    """Get the database file path"""
+    # Check for explicit DATABASE_PATH environment variable
+    env_path = os.environ.get('DATABASE_PATH')
+    if env_path and os.path.isabs(env_path):
+        return env_path
+    
+    data_dir = get_data_directory()
+    db_filename = config.DATABASE_PATH if hasattr(config, 'DATABASE_PATH') else 'database.sqlite'
+    return os.path.join(data_dir, db_filename)
+
+
+DATABASE_PATH = get_database_path()
 
 
 def get_connection():
@@ -170,6 +225,17 @@ def init_database():
             rss_url TEXT,
             enabled INTEGER DEFAULT 1,
             category TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # Users table for authentication
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            display_name TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
     """)

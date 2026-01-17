@@ -227,40 +227,42 @@ async def extract_content_with_llm(url: str, html_content: str, candidate_text: 
         candidate = (candidate_text or "").strip()
 
         prompt = f"""
-You are an expert web content extractor. Your task is to extract the clean, main article text from the provided HTML.
+You are an expert web content extractor. Extract the clean article text from HTML.
 
-Input Data:
-- URL: {url}
-- Candidate Draft (heuristic extraction): {candidate[:2000]}
-- HTML Fragment: 
+URL: {url}
+HTML Fragment: 
 {body_html}
 
-Instructions:
-1.  **Goal**: Return the full main body text of the article.
-2.  **Exclusions**: Remove all navigation, headers, footers, sidebars, advertisements, "read more" links, share buttons, comments, author bios, and newsletter signups.
-3.  **Junk Cleanup**: Aggressively identify and remove non-article content, especially at the end, including:
-    - Visual separators or dividers (e.g., lines made of dashes `---`, pipes `|`, asterisks `***`, or other repeated characters).
-    - "Call to action" blocks (e.g., "Got a tip?", "Subscribe", "Follow us", "Contact the author").
-    - "Recommended for you", "You may also like", "Related Articles", "Read more", "Trending now" sections.
-    - Boilerplate footers soliciting leaks, tips, or providing encrypted contact methods (Signal, email, etc.).
-    - **Support Information**: Remove support contact details, email addresses (e.g., "support@...", "incident@..."), and "reach out to our team" messages.
-    - **Accessibility Artifacts**: Remove text like "(opens in a new window)", "opens new tab", or similar screen reader hints.
-    - Any text that interrupts the narrative flow but isn't part of the story.
-4.  **Verbatim Content**: Keep the main article text *exactly* as written. Do not summarize, rewrite, or change the tone.
-5.  **Format**: Return clean Markdown. 
-    - IMPORTANT: Preserve all code blocks using triple backticks (```language ... ```). 
-    - **TABLES**: Identify and preserve ALL data tables. Convert them to valid Markdown tables (using `| Header |` and `|---|` syntax). 
-        - CRITICAL: Ensure every row has the same number of columns. Fix malformed tables where cell content is split across lines.
-        - If a table header is complex, simplify it to a single row if possible, or use standard Markdown table syntax.
-        - Do NOT flatten tables into lists or paragraphs.
-    - Use '- ' for bullet points.
-    - **Clean Formatting**: Do NOT use `__` for emphasis. Use `**` for bold if strictly necessary, but avoid excessive formatting. Remove artifacts like `__text__` or `**Header**` if they are just visual noise.
-6.  **Structure**: Preserve paragraph structure. Separate paragraphs with two newlines.
-7.  **Precision**: Do NOT hallucinate content. If the HTML is truncated or empty, return "ERROR: No content".
-8.  **Completeness**: If the Candidate Draft looks good but incomplete, use the HTML to finish it.
-9.  **Output**: Just the text. No intro ("Here is the article...").
+CRITICAL FORMATTING RULES:
 
-Text to extract:
+1. **INLINE ALL TEXT**: Never break sentences across lines. Link text, bold text, italic text must flow inline with surrounding text.
+   - BAD: "demand could reach\n106 gigawatts\nby 2035"  
+   - GOOD: "demand could reach 106 gigawatts by 2035"
+
+2. **CODE BLOCKS**: Preserve code exactly as-is in triple backticks. Keep all code on proper lines:
+   - BAD: ```python\nfrom openai import OpenAI\nclient = OpenAI()\n```
+   - GOOD: 
+```python
+from openai import OpenAI
+client = OpenAI()
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[
+        {{"role": "system", "content": "You are helpful."}},
+        {{"role": "user", "content": "Hello"}}
+    ]
+)
+```
+
+3. **PARAGRAPHS**: Each paragraph is ONE continuous block. Separate paragraphs with blank lines.
+
+4. **REMOVE**: Navigation, ads, footers, "subscribe", "read more", author bios, social buttons.
+
+5. **TABLES**: Convert to Markdown tables with | and |---|.
+
+6. **OUTPUT**: Just the article text. No commentary.
+
+Extract:
 """
 
         refined = await generate_remote(

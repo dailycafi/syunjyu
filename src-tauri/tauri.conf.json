@@ -8,7 +8,7 @@
   },
   "package": {
     "productName": "AI Daily",
-    "version": "0.1.4"
+    "version": "0.2.0"
   },
   "tauri": {
     "allowlist": {
@@ -66,9 +66,7 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "resources": [
-        "../python-backend/**/*"
-      ],
+      "resources": [],
       "externalBin": [],
       "copyright": "© 2024 AI Daily",
       "category": "Education",
@@ -78,8 +76,8 @@
         "entitlements": null,
         "exceptionDomain": "",
         "frameworks": [],
-        "providerShortName": null,
-        "signingIdentity": null,
+        "providerShortName": "FM4EYX3227",
+        "signingIdentity": "Developer ID Application: Fei Wen (FM4EYX3227)",
         "minimumSystemVersion": "10.15"
       },
       "windows": {
@@ -89,7 +87,7 @@
       }
     },
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' http://127.0.0.1:* https://api.dictionaryapi.dev https://*.minimax.chat; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; font-src 'self' data:"
+      "csp": "default-src 'self'; connect-src 'self' http://127.0.0.1:* https://api.syunjyu.com https://api.dictionaryapi.dev https://*.minimax.chat; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; font-src 'self' data:"
     },
     "updater": {
       "active": true,

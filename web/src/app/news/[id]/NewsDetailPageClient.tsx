@@ -162,8 +162,32 @@ const StructureNodeTree = ({ node }: { node: StructureNode }) => {
   )
 }
 
-const StructureConclusion = ({ takeaways }: { takeaways?: string[] }) => {
+// Takeaway item can be a string (old format) or an object with type and content (new format)
+type TakeawayItem = string | { type: string; content: string }
+
+const StructureConclusion = ({ takeaways }: { takeaways?: TakeawayItem[] }) => {
   if (!takeaways || !Array.isArray(takeaways) || takeaways.length === 0) return null
+
+  // Helper to get display text from takeaway item
+  const getTakeawayText = (item: TakeawayItem): string => {
+    if (typeof item === 'string') return item
+    if (typeof item === 'object' && item !== null && 'content' in item) return item.content
+    return String(item)
+  }
+
+  // Helper to get type label from takeaway item
+  const getTakeawayType = (item: TakeawayItem): string => {
+    if (typeof item === 'object' && item !== null && 'type' in item) {
+      const typeMap: Record<string, string> = {
+        'question': 'Key Question',
+        'strategic': 'Strategic',
+        'connection': 'Connection',
+        'insight': 'Insight',
+      }
+      return typeMap[item.type] || 'Insight'
+    }
+    return 'Insight'
+  }
 
   return (
     <div className="mt-10 rounded-3xl border border-purple-100 bg-gradient-to-br from-white to-purple-50/50 p-8 shadow-sm">
@@ -184,9 +208,9 @@ const StructureConclusion = ({ takeaways }: { takeaways?: string[] }) => {
                 <span className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-100 text-purple-600 text-xs font-bold">
                     {idx + 1}
                 </span>
-                <span className="text-xs font-semibold tracking-wider text-slate-400 uppercase">Insight</span>
+                <span className="text-xs font-semibold tracking-wider text-slate-400 uppercase">{getTakeawayType(item)}</span>
             </div>
-            <p className="text-sm leading-relaxed text-slate-700 font-medium">{item}</p>
+            <p className="text-sm leading-relaxed text-slate-700 font-medium">{getTakeawayText(item)}</p>
           </div>
         ))}
       </div>
@@ -690,11 +714,37 @@ const VocabularyCard = ({ item, onIgnore, onSave, isAiMode, isSaved: initialSave
   const [checking, setChecking] = useState(false)
   const [showInput, setShowInput] = useState(false)
   const [isSaved, setIsSaved] = useState(initialSaved)
+  const [phonetic, setPhonetic] = useState<string | null>(null)
+  const [loadingPhonetic, setLoadingPhonetic] = useState(false)
 
   // Sync with props
   useEffect(() => {
       setIsSaved(initialSaved)
   }, [initialSaved])
+
+  // Lazy load phonetic when card is rendered (only for English learner mode)
+  useEffect(() => {
+    if (isAiMode) return // AI mode doesn't need phonetics
+    
+    const fetchPhonetic = async () => {
+      setLoadingPhonetic(true)
+      try {
+        const entry = await fetchDictionaryDefinition(item.term)
+        if (entry) {
+          const ipa = entry.phonetic || entry.phonetics?.find(p => p.text)?.text
+          if (ipa) {
+            setPhonetic(ipa)
+          }
+        }
+      } catch (e) {
+        console.error('Failed to fetch phonetic:', e)
+      } finally {
+        setLoadingPhonetic(false)
+      }
+    }
+    
+    fetchPhonetic()
+  }, [item.term, isAiMode])
 
   // If saved, use GREEN theme to match the highlight color
   const themeClass = isSaved
@@ -754,10 +804,16 @@ const VocabularyCard = ({ item, onIgnore, onSave, isAiMode, isSaved: initialSave
     <div className={`${themeClass} rounded-xl p-6 border transition-all group relative`}>
        <div className="flex flex-col md:flex-row md:items-baseline gap-2 md:gap-4 mb-3">
           <h4 className={`text-xl font-bold ${textClass}`}>{item.term}</h4>
-          {item.pronunciation && (
-             <span className={`text-sm font-mono px-2 py-0.5 rounded ${subTextClass}`}>
-               /{item.pronunciation}/
-             </span>
+          {!isAiMode && (
+            loadingPhonetic ? (
+              <span className={`text-sm font-mono px-2 py-0.5 rounded ${subTextClass} animate-pulse`}>
+                ...
+              </span>
+            ) : phonetic ? (
+              <span className={`text-sm font-mono px-2 py-0.5 rounded ${subTextClass}`}>
+                {phonetic}
+              </span>
+            ) : null
           )}
           
           <div className="ml-auto flex items-center gap-2">
@@ -839,6 +895,82 @@ const VocabularyCard = ({ item, onIgnore, onSave, isAiMode, isSaved: initialSave
            </div>
            )}
        </div>
+    </div>
+  )
+}
+
+// Saved phrase card with lazy-loaded phonetic
+const SavedPhraseCard = ({ phrase, onDelete, isEnglishLearner }: { phrase: PhraseRecord, onDelete: (id: number) => void, isEnglishLearner: boolean }) => {
+  const [phonetic, setPhonetic] = useState<string | null>(null)
+  const [loadingPhonetic, setLoadingPhonetic] = useState(false)
+
+  // Lazy load phonetic for English learner mode
+  useEffect(() => {
+    if (!isEnglishLearner) return
+    
+    const fetchPhonetic = async () => {
+      setLoadingPhonetic(true)
+      try {
+        const entry = await fetchDictionaryDefinition(phrase.text)
+        if (entry) {
+          const ipa = entry.phonetic || entry.phonetics?.find(p => p.text)?.text
+          if (ipa) {
+            setPhonetic(ipa)
+          }
+        }
+      } catch (e) {
+        console.error('Failed to fetch phonetic:', e)
+      } finally {
+        setLoadingPhonetic(false)
+      }
+    }
+    
+    fetchPhonetic()
+  }, [phrase.text, isEnglishLearner])
+
+  return (
+    <div className="bg-green-50/50 p-4 rounded-xl border border-green-200 shadow-sm hover:shadow-md transition-all group hover:border-green-300">
+      <div className="flex justify-between items-start mb-2">
+        <div className="flex items-baseline gap-2 flex-wrap">
+          <h4 className="font-bold text-green-900 text-lg">{phrase.text}</h4>
+          {isEnglishLearner && (
+            loadingPhonetic ? (
+              <span className="text-sm font-mono text-green-600/60 animate-pulse">...</span>
+            ) : phonetic ? (
+              <span className="text-sm font-mono text-green-600/80">{phonetic}</span>
+            ) : null
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-green-400/80">
+            {format(new Date(phrase.created_at), 'MM/dd')}
+          </span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete(phrase.id)
+            }}
+            className="p-1 rounded-full hover:bg-green-100 text-green-400 hover:text-red-500 transition-colors"
+            title="Remove"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      {phrase.note && (
+        <div className="text-green-800/80 text-sm mb-3 bg-white/60 p-2 rounded border border-green-100 prose prose-sm max-w-none">
+          <ReactMarkdown>{phrase.note}</ReactMarkdown>
+        </div>
+      )}
+      {(phrase.context_before || phrase.context_after) && (
+        <div className="text-xs text-slate-500 italic border-l-2 border-green-300 pl-2 line-clamp-2 group-hover:line-clamp-none transition-all">
+          ...{phrase.context_before} 
+          <span className="font-bold text-green-700">{phrase.text}</span> 
+          {phrase.context_after}...
+        </div>
+      )}
     </div>
   )
 }
@@ -1107,7 +1239,7 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
     }
   }
 
-  const handleAnalyze = async (scope: AnalysisScope) => {
+  const handleAnalyze = async (scope: AnalysisScope, forceRefresh: boolean = false) => {
     setLoadingScopes(prev => ({ ...prev, [scope]: true }))
     setAnalysisErrors((prev) => {
       const next = { ...prev }
@@ -1115,26 +1247,16 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
       return next
     })
 
-    // Clear current data if re-analyzing to force refresh UI state properly
-    // But we want to keep old data visible while loading? 
-    // Actually, if we want to "refresh", we might want to clear it or just update.
-    // Issue: "clicking re-analyze didn't work" -> maybe because state didn't change enough or cache?
-    // The backend handles caching. If user wants FORCE refresh, we might need a force flag?
-    // Current implementation of analyzeArticle in backend CHECKS cache first.
-    // So "Re-analyze" button just fetches cache again if it exists.
-    // We need a way to force clear cache.
-    // Let's just assume for now the user means "it's not showing what I expect".
-    // But if the user says "same words keep being marked", that's render logic.
-    // Wait, "same words marked multiple times" -> duplicate highlights?
-    // We handle overlaps in renderHighlightedContent. 
-    // If the same word appears multiple times in text, we highlight all occurrences.
-    // User said: "in this article, I marked ChatGPT Shopping Research, but others didn't appear... Wait, user said 'I marked 12 words... but only ChatGPT Shopping Research is marked repeatedly'".
-    // Ah, maybe the user means AI returned 12 words, but in the text only one is being highlighted?
-    // Or maybe the AI only found that one word?
-    // Let's check the vocabulary list card first.
+    // If we already have data for this scope and user clicks the button again,
+    // treat it as a "Re-analyze" request with force=true to skip cache
+    const shouldForce = forceRefresh || (
+      (scope === 'summary' && !!analysisData.summary) ||
+      (scope === 'structure' && !!analysisData.structure) ||
+      (scope === 'vocabulary' && !!analysisData.vocabulary)
+    )
 
     try {
-      const result = await analyzeArticle(newsId, scope, mode)
+      const result = await analyzeArticle(newsId, scope, mode, shouldForce)
       if (result.status === 'success') {
         const payload = result.analysis
 
@@ -1388,8 +1510,8 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
         setSaveSuccess(true)
         setTimeout(() => setSaveSuccess(false), 2000)
         
-        // Reload phrases to update "My Saved Phrases" section immediately
-        await loadPhrases()
+        // Reload both local and global phrases to update highlights
+        await Promise.all([loadPhrases(), loadGlobalPhrases()])
     } catch (error) {
         console.error('Failed to save vocabulary item:', error)
         showToast('Save failed', 'error')
@@ -1403,7 +1525,8 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
           const phrase = phrases.find(p => p.text.toLowerCase() === item.term.toLowerCase())
           if (phrase) {
               await deletePhrase(phrase.id)
-              await loadPhrases()
+              // Reload both local and global phrases to update highlights
+              await Promise.all([loadPhrases(), loadGlobalPhrases()])
           }
       } catch (error) {
           console.error('Failed to unsave:', error)
@@ -1995,46 +2118,18 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                             {/* Show Terminology Group Only in AI Mode */}
                             {!isEnglishLearner && phrases.filter(p => p.color?.includes('e0e7ff') || p.type === 'terminology').length > 0 && (
                                 <div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         {phrases
                                             .filter(p => p.color?.includes('e0e7ff') || p.type === 'terminology')
                                             .map((phrase) => (
-                                            <div key={phrase.id} className="bg-green-50/50 p-4 rounded-xl border border-green-200 shadow-sm hover:shadow-md transition-all group hover:border-green-300">
-                                            <div className="flex justify-between items-start mb-2">
-                                                    <h4 className="font-bold text-green-900 text-lg px-2 py-0.5 rounded inline-block">
-                                                    {phrase.text}
-                                                </h4>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-xs text-green-400/80">
-                                                        {format(new Date(phrase.created_at), 'MM/dd')}
-                                                    </span>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            handleDeletePhrase(phrase.id)
-                                                        }}
-                                                        className="p-1 rounded-full hover:bg-green-100 text-green-400 hover:text-red-500 transition-colors"
-                                                        title="Remove"
-                                                    >
-                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                            <path d="M18 6L6 18M6 6l12 12" />
-                                                        </svg>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            {phrase.note && (
-                                                    <div className="text-green-800/80 text-sm mb-3 bg-white/60 p-2 rounded border border-green-100 prose prose-sm max-w-none">
-                                                        <ReactMarkdown>{phrase.note}</ReactMarkdown>
-                                                    </div>
-                                            )}
-                                                <div className="text-xs text-slate-500 italic border-l-2 border-green-300 pl-2 line-clamp-2 group-hover:line-clamp-none transition-all">
-                                                ...{phrase.context_before} 
-                                                    <span className="font-bold text-green-700">{phrase.text}</span> 
-                                                {phrase.context_after}...
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+                                              <SavedPhraseCard 
+                                                key={phrase.id} 
+                                                phrase={phrase} 
+                                                onDelete={handleDeletePhrase}
+                                                isEnglishLearner={isEnglishLearner}
+                                              />
+                                        ))}
+                                    </div>
                                 </div>
                             )}
 
@@ -2045,40 +2140,12 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                                         {phrases
                                             .filter(p => !p.color?.includes('e0e7ff') && p.type !== 'terminology')
                                             .map((phrase) => (
-                                            <div key={phrase.id} className="bg-green-50/50 p-4 rounded-xl border border-green-200 shadow-sm hover:shadow-md transition-all group hover:border-green-300">
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <h4 className="font-bold text-green-900 text-lg px-2 py-0.5 rounded inline-block">
-                                                        {phrase.text}
-                                                    </h4>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-xs text-green-400/80">
-                                                            {format(new Date(phrase.created_at), 'MM/dd')}
-                                                        </span>
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation()
-                                                                handleDeletePhrase(phrase.id)
-                                                            }}
-                                                            className="p-1 rounded-full hover:bg-green-100 text-green-400 hover:text-red-500 transition-colors"
-                                                            title="Remove"
-                                                        >
-                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                                <path d="M18 6L6 18M6 6l12 12" />
-                                                            </svg>
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                                {phrase.note && (
-                                                    <div className="text-green-800/80 text-sm mb-3 bg-white/60 p-2 rounded border border-green-100 prose prose-sm max-w-none">
-                                                        <ReactMarkdown>{phrase.note}</ReactMarkdown>
-                                                    </div>
-                                                )}
-                                                <div className="text-xs text-slate-500 italic border-l-2 border-green-300 pl-2 line-clamp-2 group-hover:line-clamp-none transition-all">
-                                                    ...{phrase.context_before} 
-                                                    <span className="font-bold text-green-700">{phrase.text}</span> 
-                                                    {phrase.context_after}...
-                                                </div>
-                                            </div>
+                                              <SavedPhraseCard 
+                                                key={phrase.id} 
+                                                phrase={phrase} 
+                                                onDelete={handleDeletePhrase}
+                                                isEnglishLearner={isEnglishLearner}
+                                              />
                                         ))}
                                     </div>
                                 </div>
@@ -2130,8 +2197,6 @@ export default function NewsDetailPageClient({ newsId }: NewsDetailPageClientPro
                                       .map((item, idx) => {
                                           // Check if already saved
                                           const isAlreadySaved = phrases.some(p => p.text.toLowerCase() === item.term.toLowerCase())
-                                          
-                                          if (isAlreadySaved) return null // Optionally hide or show as saved
                                           
                                           return (
                                             <VocabularyCard 

@@ -1,6 +1,6 @@
 [package]
 name = "ai-daily"
-version = "0.1.0"
+version = "0.2.0"
 description = "AI Daily - Desktop app for AI news aggregation and learning"
 authors = ["AI Daily Team"]
 license = ""
@@ -13,15 +13,9 @@ edition = "2021"
 tauri-build = { version = "1.5", features = [] }
 
 [dependencies]
-tauri = { version = "1.5", features = ["dialog-all", "fs-all", "shell-open", "process-all", "notification-all", "os-all", "path-all", "system-tray", "updater"] }
+tauri = { version = "1.5", features = [ "system-tray", "process-all", "dialog-all", "fs-all", "shell-open", "notification-all", "os-all", "path-all", "updater"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-tokio = { version = "1.47", features = ["rt-multi-thread", "macros", "time"] }
-reqwest = { version = "0.11", features = ["json"], default-features = false }
-
-# Unix-specific dependencies for graceful process termination
-[target.'cfg(unix)'.dependencies]
-libc = "0.2"
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!

@@ -145,47 +145,34 @@ Return JSON:
   "vocabulary": [
     {{
         "term": "Word or phrase",
-        "pronunciation": "IPA phonetic transcription", 
-        "definition": "Professional dictionary-style definition in English",
-        "example": "A comprehensive example sentence demonstrating usage (can be from article or generated)",
-        "difficulty": "CEFR level (A1/A2/B1/B2/C1/C2)"
+        "definition": "Clear, concise definition in English",
+        "example": "Example sentence from the article showing usage",
+        "difficulty": "CEFR level (B1/B2/C1/C2)"
     }},
     ...
   ]
 }}
 
-**VOCABULARY SELECTION GUIDELINES:**
+**SELECTION RULES:**
 
-1. **Difficulty Assessment**: Accurately assess each word's CEFR level:
-   - A1-A2: Basic everyday words (the, go, happy, eat)
-   - B1: Common but not basic (achieve, opportunity, significant)
-   - B2: Upper-intermediate (comprehensive, substantial, innovative)
-   - C1: Advanced (ubiquitous, paradigm, eloquent, pragmatic, albeit)
-   - C2: Proficient/Near-native (obfuscate, perspicacious, idiosyncratic, ephemeral)
+1. **Difficulty levels:**
+   - B1: Common but not basic (achieve, significant)
+   - B2: Upper-intermediate (comprehensive, innovative)
+   - C1: Advanced (ubiquitous, paradigm, albeit)
+   - C2: Near-native (obfuscate, perspicacious)
 
-2. **Include ALL types of challenging vocabulary:**
-   - Literary/academic words (e.g., "ameliorate", "ephemeral", "ubiquitous")
-   - Technical terms with precise meanings (e.g., "idempotent", "heuristic", "stochastic")
-   - Business/professional vocabulary (e.g., "amortize", "fiduciary", "synergistic")
-   - Idiomatic expressions and phrasal verbs with non-obvious meanings
-   - Words with nuanced connotations
+2. **Include:**
+   - Academic/literary words
+   - Business vocabulary
+   - Idiomatic expressions
+   - Words with nuanced meanings
 
-3. **MUST REJECT:**
-   - Words that are below the user's recommended difficulty range
-   - Extremely common words that any intermediate learner knows
-   - Proper nouns, brand names, or acronyms (unless they have become common vocabulary)
-   - Words that are simple even if they look long
+3. **Exclude:**
+   - Words below user's level
+   - Common everyday words
+   - Proper nouns, brand names
 
-4. **Quality over quantity**: 
-   - Provide 6-10 high-quality terms
-   - If the article lacks challenging vocabulary at the recommended level, return fewer items
-   - Do NOT pad with easier words just to fill the list
-
-5. **Format requirements:**
-   - "pronunciation": Standard IPA (e.g., /ˌdʒen.ə.rə.tɪv/)
-   - "definition": Oxford/Cambridge style, precise and comprehensive
-   - "example": Full sentence (15+ words) demonstrating sophisticated usage
-   - "difficulty": Must accurately reflect the CEFR level
+4. **Quantity:** 6-10 high-quality terms only.
 
 Return ONLY valid JSON.
 """
@@ -275,8 +262,7 @@ Requirements:
 5. **Strict JSON**: Return ONLY valid JSON.
 """
 
-VOCABULARY_PROMPT_TECH = """You are a senior AI/ML researcher creating a glossary for fellow professionals.
-Your goal is to extract ADVANCED technical concepts that even experienced engineers might need to look up.
+VOCABULARY_PROMPT_TECH = """You are a senior AI/ML researcher extracting advanced technical concepts.
 
 Article Title: {title}
 Article Content:
@@ -287,40 +273,32 @@ Return JSON:
   "vocabulary": [
     {{
         "term": "Technical Term / Concept",
-        "pronunciation": "IPA (if applicable) or empty string",
-        "definition": "Precise technical definition with context (IEEE/ACM style)",
-        "example": "A detailed technical sentence showing correct usage in context",
-        "category": "One of: architecture, algorithm, methodology, concept, metric, protocol"
+        "definition": "Precise technical definition (IEEE/ACM style)",
+        "example": "Technical sentence showing usage in context",
+        "category": "architecture | algorithm | methodology | concept | metric | protocol"
     }},
     ...
   ]
 }}
 
-**STRICT FILTERING REQUIREMENTS:**
+**SELECTION RULES:**
 
-1. **Expertise Level Filter**: ONLY include terms that require specialized knowledge. Target audience is senior engineers/researchers.
+1. **ONLY advanced concepts** for senior engineers/researchers.
 
-2. **MUST REJECT these categories (too basic for tech professionals):**
-   - Generic programming terms: data, code, function, class, object, variable, API, SDK, database, server, client, framework, library, module, package
-   - Basic ML terms: model, training, testing, accuracy, loss, layer, network, neural, deep learning, machine learning, AI, dataset, feature, label
-   - Common DevOps terms: deploy, build, test, CI/CD, Docker, Kubernetes, cloud, AWS, Azure, GCP, container
-   - Generic software terms: scalable, robust, efficient, optimize, configure, integrate, implement, automate
-   - Business buzzwords: enterprise, platform, solution, ecosystem, transformation, agile, lean
+2. **REJECT basic terms:**
+   - Generic: API, SDK, database, server, framework, library
+   - Basic ML: model, training, accuracy, neural network, deep learning
+   - DevOps: Docker, Kubernetes, CI/CD, cloud
+   - Buzzwords: scalable, enterprise, platform, ecosystem
 
-3. **PREFER these categories:**
-   - **Novel architectural patterns**: e.g., "mixture of experts", "sparse attention", "ring attention"
-   - **Cutting-edge algorithms**: e.g., "direct preference optimization (DPO)", "constitutional AI", "chain-of-thought prompting"
-   - **Advanced concepts**: e.g., "emergent capabilities", "in-context learning", "mechanistic interpretability", "superposition"
-   - **Specialized metrics**: e.g., "perplexity", "BLEU score", "ROUGE-L", "calibration error"
-   - **Research methodologies**: e.g., "ablation study", "scaling laws", "compute-optimal training"
-   - **Industry-specific protocols**: e.g., "RLHF", "constitutional AI", "red-teaming"
+3. **PREFER:**
+   - Novel patterns: mixture of experts, sparse attention
+   - Cutting-edge: DPO, constitutional AI, chain-of-thought
+   - Advanced: emergent capabilities, mechanistic interpretability
+   - Metrics: perplexity, BLEU, calibration error
+   - Methods: ablation study, scaling laws, RLHF
 
-4. **Quality over quantity**: If the article lacks truly advanced technical concepts, return fewer items (even 3-5 is fine). Do NOT pad with basic terms.
-
-5. **Format requirements:**
-   - "definition": IEEE/ACM style, technically precise, include mathematical intuition if applicable
-   - "example": Substantial (15+ words), technically accurate, shows real-world application
-   - "category": Helps reader understand the type of concept
+4. **Quantity:** 5-8 truly advanced terms. Fewer is better than padding with basics.
 
 Return ONLY valid JSON.
 """
@@ -347,6 +325,7 @@ async def analyze_article(
     scope: AnalysisScope = "summary",
     user_mode: str = "english_learner",
     base_url: str = None,
+    force: bool = False,
 ) -> Dict:
     # Use config defaults if not provided
     if provider is None:
@@ -355,6 +334,7 @@ async def analyze_article(
         model = config.DEFAULT_MODEL_NAME
     """
     Analyze an article for a specific scope (summary, structure, vocabulary).
+    If force=True, skip cache and re-analyze.
     """
 
     # Default to english_learner if mode is invalid or unknown
@@ -367,12 +347,17 @@ async def analyze_article(
     conn = db.get_connection()
     cursor = conn.cursor()
     
-    # CHECK PERSISTENCE FIRST
-    cursor.execute(
-        "SELECT content FROM article_analysis WHERE news_id = ? AND scope = ? AND mode = ?", 
-        (news_id, scope, user_mode)
-    )
-    cached_row = cursor.fetchone()
+    # CHECK PERSISTENCE FIRST (skip if force=True)
+    if not force:
+        cursor.execute(
+            "SELECT content FROM article_analysis WHERE news_id = ? AND scope = ? AND mode = ?", 
+            (news_id, scope, user_mode)
+        )
+        cached_row = cursor.fetchone()
+    else:
+        cached_row = None
+        print(f"Force re-analyze for news {news_id}, scope={scope}")
+        
     if cached_row:
         try:
             # Return cached data if valid JSON
@@ -486,7 +471,7 @@ async def analyze_article(
                     "raw_response": response_text[:2000] if response_text else "Empty response",
                  }
         
-        # Post-process vocabulary to fix phonetics and validate existence
+        # Post-process vocabulary: only validate existence, phonetics fetched on-demand
         if scope == "vocabulary" and "vocabulary" in analysis_data:
             valid_vocab = []
             content_lower = content.lower()
@@ -499,11 +484,8 @@ async def analyze_article(
                 # Validate term exists in content (prevent hallucinations)
                 if term.lower() not in content_lower:
                     continue
-
-                reliable_ipa = await get_reliable_phonetic(term)
-                if reliable_ipa:
-                    item["pronunciation"] = reliable_ipa
                 
+                # Keep LLM-generated pronunciation as fallback, will be fetched on-demand if needed
                 valid_vocab.append(item)
             
             analysis_data["vocabulary"] = valid_vocab

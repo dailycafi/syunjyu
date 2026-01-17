@@ -29,9 +29,11 @@ from concept_extractor import (
     auto_extract_concepts_for_news,
 )
 from ai_filter import filter_news_with_ai
-from article_analyzer import analyze_article
+from article_analyzer import analyze_article, get_reliable_phonetic
 from pdf_exporter import generate_news_pdf, generate_concepts_pdf, generate_phrases_pdf
-from sync_client import SyncClient, SyncError
+from passlib.context import CryptContext
+from jose import jwt
+from datetime import datetime, timedelta
 from tts_service import generate_speech_minimax, TTSError
 
 # Initialize FastAPI app
@@ -69,6 +71,8 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup():
     """Initialize database and default data"""
+    print(f"[Backend] Database path: {db.DATABASE_PATH}")
+    print(f"[Backend] Data directory: {db.get_data_directory()}")
     db.init_database()
     db.insert_default_settings()
     init_news_sources_db()
@@ -132,6 +136,7 @@ class ChatResponse(BaseModel):
 class AnalysisRequest(BaseModel):
     scope: Literal["summary", "structure", "vocabulary"] = "summary"
     user_mode: Optional[Literal["english_learner", "ai_learner"]] = "english_learner"
+    force: Optional[bool] = False  # Force re-analyze, skip cache
 
 
 class SavePhraseRequest(BaseModel):
@@ -524,7 +529,7 @@ async def analyze_news(news_id: int, request: AnalysisRequest):
     """
     try:
         config = get_ai_config()
-        print(f"Starting analysis for news {news_id}, scope={request.scope}, model={config['model']}, base_url={config['base_url']}")
+        print(f"Starting analysis for news {news_id}, scope={request.scope}, model={config['model']}, base_url={config['base_url']}, force={request.force}")
         
         analysis = await analyze_article(
             news_id,
@@ -533,7 +538,8 @@ async def analyze_news(news_id: int, request: AnalysisRequest):
             api_key=config["api_key"],
             scope=request.scope,
             user_mode=request.user_mode or "english_learner",
-            base_url=config["base_url"]
+            base_url=config["base_url"],
+            force=request.force or False
         )
         
         return {"status": "success", "analysis": analysis}
@@ -863,12 +869,23 @@ async def fetch_news(background_tasks: BackgroundTasks):
     Fetch news from all enabled sources
     Runs in background
     """
-    async def fetch_and_save():
-        all_news = await fetch_all_news(enabled_only=True)
-        for source_news in all_news.values():
-            save_news_to_db(source_news)
+    def fetch_and_save_sync():
+        import asyncio
+        async def _fetch():
+            all_news = await fetch_all_news(enabled_only=True)
+            for source_news in all_news.values():
+                save_news_to_db(source_news)
+            print(f"[News Fetch] Completed, saved news from {len(all_news)} sources")
+        
+        # 创建新的事件循环来运行异步任务
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(_fetch())
+        finally:
+            loop.close()
 
-    background_tasks.add_task(fetch_and_save)
+    background_tasks.add_task(fetch_and_save_sync)
 
     return {"status": "fetching", "message": "News fetch started in background"}
 
@@ -878,11 +895,27 @@ async def filter_news_ai(background_tasks: BackgroundTasks):
     """
     Trigger AI filtering of news (identify industry dynamics vs boring stuff)
     """
-    async def run_filtering():
-        await filter_news_with_ai(batch_size=20)
+    def run_filtering_sync():
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(filter_news_with_ai(batch_size=20))
+            print("[AI Filter] Completed")
+        finally:
+            loop.close()
 
-    background_tasks.add_task(run_filtering)
+    background_tasks.add_task(run_filtering_sync)
     return {"status": "processing", "message": "AI filtering started in background"}
+
+
+@app.get("/api/vocabulary/phonetic/{word}")
+async def get_word_phonetic(word: str):
+    """
+    Get IPA phonetic for a word (on-demand, lazy-loaded)
+    """
+    phonetic = await get_reliable_phonetic(word)
+    return {"word": word, "phonetic": phonetic}
 
 
 @app.post("/api/news/{news_id}/refetch")
@@ -1303,29 +1336,102 @@ async def export_pdf(
         raise HTTPException(status_code=500, detail=f"Export error: {str(e)}")
 
 
-# ==================== Sync Endpoints ====================
+# ==================== Auth Configuration ====================
 
-sync_client = SyncClient()
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", "syunjyu-secret-key-change-in-production")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_DAYS = 30
+
+
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+def create_access_token(user_id: int, email: str) -> str:
+    expire = datetime.utcnow() + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
+    to_encode = {"sub": str(user_id), "email": email, "exp": expire}
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+# ==================== Auth Endpoints ====================
 
 
 @app.post("/api/auth/register")
 async def register(request: AuthRequest):
-    """Register new user"""
+    """Register new user - directly in backend, no sync server needed"""
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
     try:
-        result = await sync_client.register(request.email, request.password)
-        return result
-    except SyncError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        # Check if user exists
+        cursor.execute("SELECT id FROM users WHERE email = ?", (request.email,))
+        if cursor.fetchone():
+            raise HTTPException(status_code=400, detail="Email already registered")
+        
+        # Create user
+        password_hash = hash_password(request.password)
+        cursor.execute(
+            "INSERT INTO users (email, password_hash) VALUES (?, ?)",
+            (request.email, password_hash)
+        )
+        user_id = cursor.lastrowid
+        conn.commit()
+        
+        # Create token
+        access_token = create_access_token(user_id, request.email)
+        
+        # Store credentials locally
+        db.set_setting("user_id", str(user_id))
+        db.set_setting("auth_token", access_token)
+        db.set_setting("user_email", request.email)
+        
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user_id": user_id
+        }
+    finally:
+        conn.close()
 
 
 @app.post("/api/auth/login")
 async def login(request: AuthRequest):
-    """Login user"""
+    """Login user - directly in backend"""
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
     try:
-        result = await sync_client.login(request.email, request.password)
-        return result
-    except SyncError as e:
-        raise HTTPException(status_code=401, detail=str(e))
+        # Get user
+        cursor.execute("SELECT id, email, password_hash FROM users WHERE email = ?", (request.email,))
+        row = cursor.fetchone()
+        
+        if not row:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        
+        # Verify password
+        if not verify_password(request.password, row["password_hash"]):
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        
+        # Create token
+        access_token = create_access_token(row["id"], row["email"])
+        
+        # Store credentials locally
+        db.set_setting("user_id", str(row["id"]))
+        db.set_setting("auth_token", access_token)
+        db.set_setting("user_email", request.email)
+        
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user_id": row["id"]
+        }
+    finally:
+        conn.close()
 
 
 class LogoutRequest(BaseModel):
@@ -1335,25 +1441,24 @@ class LogoutRequest(BaseModel):
 @app.post("/api/auth/logout")
 async def logout(request: LogoutRequest = LogoutRequest()):
     """Logout user and optionally clear local data"""
-    sync_client.logout(clear_local_data=request.clear_local_data)
+    # Clear credentials
+    db.set_setting("user_id", "")
+    db.set_setting("auth_token", "")
+    db.set_setting("user_email", "")
     return {"status": "success"}
-
-
-@app.post("/api/sync")
-async def sync():
-    """Perform bidirectional sync"""
-    try:
-        result = await sync_client.sync()
-        return result
-    except SyncError as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/sync/status")
 async def sync_status():
     """Get sync status (user-specific data counts)"""
-    status = sync_client.get_sync_status()
     user_id = get_current_user_id()
+    email = db.get_setting("user_email") or ""
+    
+    status = {
+        "logged_in": user_id is not None,
+        "user_id": user_id,
+        "email": email,
+    }
     
     # Add data counts (user-specific)
     conn = db.get_connection()
@@ -1404,64 +1509,126 @@ class VerifyPasswordRequest(BaseModel):
 @app.get("/api/user/profile")
 async def get_profile():
     """Get user profile"""
-    try:
-        profile = await sync_client.get_profile()
-        return profile
-    except SyncError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    user_id = require_user_id()
+    
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, email, display_name, created_at FROM users WHERE id = ?", (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    if not row:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {
+        "id": row["id"],
+        "email": row["email"],
+        "display_name": row["display_name"],
+        "created_at": row["created_at"]
+    }
 
 
 @app.put("/api/user/profile")
 async def update_profile(request: UpdateProfileRequest):
     """Update user profile"""
-    try:
-        result = await sync_client.update_profile(display_name=request.display_name)
-        return result
-    except SyncError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    user_id = require_user_id()
+    
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE users SET display_name = ? WHERE id = ?",
+        (request.display_name, user_id)
+    )
+    conn.commit()
+    conn.close()
+    
+    return {"status": "success", "message": "Profile updated"}
 
 
 @app.post("/api/user/change-password")
 async def change_password(request: ChangePasswordRequest):
     """Change user password"""
-    try:
-        result = await sync_client.change_password(
-            current_password=request.current_password,
-            new_password=request.new_password
-        )
-        return result
-    except SyncError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    user_id = require_user_id()
+    
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT password_hash FROM users WHERE id = ?", (user_id,))
+    row = cursor.fetchone()
+    
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Verify current password
+    if not verify_password(request.current_password, row["password_hash"]):
+        conn.close()
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    
+    # Update password
+    new_hash = hash_password(request.new_password)
+    cursor.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, user_id))
+    conn.commit()
+    conn.close()
+    
+    return {"status": "success", "message": "Password changed"}
 
 
 @app.post("/api/user/verify-password")
-async def verify_password(request: VerifyPasswordRequest):
+async def verify_password_endpoint(request: VerifyPasswordRequest):
     """Verify user password"""
-    try:
-        verified = await sync_client.verify_password(request.password)
-        return {"verified": verified}
-    except SyncError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    user_id = require_user_id()
+    
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT password_hash FROM users WHERE id = ?", (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    if not row:
+        return {"verified": False}
+    
+    return {"verified": verify_password(request.password, row["password_hash"])}
 
 
 @app.delete("/api/user/account")
 async def delete_account():
     """Delete user account"""
-    try:
-        result = await sync_client.delete_account()
-        return result
-    except SyncError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    user_id = require_user_id()
+    
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    # Delete user data
+    cursor.execute("DELETE FROM phrases WHERE user_id = ?", (user_id,))
+    cursor.execute("DELETE FROM concepts WHERE user_id = ?", (user_id,))
+    cursor.execute("UPDATE news SET user_id = NULL WHERE user_id = ?", (user_id,))
+    cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    
+    conn.commit()
+    conn.close()
+    
+    # Clear local credentials
+    db.set_setting("user_id", "")
+    db.set_setting("auth_token", "")
+    db.set_setting("user_email", "")
+    
+    return {"status": "success", "message": "Account deleted"}
 
 
 @app.post("/api/user/clear-local-data")
 async def clear_local_data():
     """Clear local user data without logging out"""
-    try:
-        sync_client.clear_local_data()
-        return {"status": "success", "message": "Local data cleared"}
-    except SyncError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    user_id = get_current_user_id()
+    
+    if user_id:
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE phrases SET deleted = 1 WHERE user_id = ?", (user_id,))
+        cursor.execute("UPDATE concepts SET deleted = 1 WHERE user_id = ?", (user_id,))
+        conn.commit()
+        conn.close()
+    
+    return {"status": "success", "message": "Local data cleared"}
 
 
 # ==================== Health Check ====================

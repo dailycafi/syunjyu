@@ -1,123 +1,37 @@
-const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8500'
+// Cloud API endpoint - used when not running in Tauri
+const CLOUD_API_URL = 'https://api.syunjyu.com'
+// Local fallback for development
+const LOCAL_API_URL = 'http://127.0.0.1:8500'
 
-// Cache for the backend port from Tauri
+// Cache for custom backend port (for development only)
 let cachedBackendPort: number | null = null
 
 /**
- * Get the backend port from Tauri (if running in Tauri context)
- * Falls back to default port if not in Tauri or if Tauri call fails
- */
-const getTauriBackendPort = async (): Promise<number | null> => {
-  if (typeof window === 'undefined') return null
-  
-  // Check if we're in Tauri context
-  const tauri = (window as any).__TAURI__
-  if (!tauri?.invoke) return null
-  
-  try {
-    const port = await tauri.invoke('get_backend_port')
-    return port as number | null
-  } catch (e) {
-    console.warn('[API] Failed to get backend port from Tauri:', e)
-    return null
-  }
-}
-
-/**
- * Wait for backend to be healthy
- */
-const waitForBackendHealth = async (port: number, maxAttempts: number = 30): Promise<boolean> => {
-  for (let i = 0; i < maxAttempts; i++) {
-    try {
-      const response = await fetch(`http://127.0.0.1:${port}/health`, {
-        method: 'GET',
-        signal: AbortSignal.timeout(2000),
-      })
-      if (response.ok) {
-        console.log(`[API] Backend is healthy on port ${port}`)
-        return true
-      }
-    } catch (e) {
-      // Backend not ready yet
-    }
-    // Wait 500ms before next attempt
-    await new Promise(resolve => setTimeout(resolve, 500))
-  }
-  return false
-}
-
-/**
- * Initialize API with dynamic port detection
- * Should be called early in app lifecycle
+ * Initialize API
+ * Now uses cloud backend by default, no need to wait for local backend
  */
 export const initializeApi = async (): Promise<void> => {
   if (typeof window === 'undefined') return
   
-  const tauri = (window as any).__TAURI__
-  
-  // If in Tauri context, wait for backend-ready event or poll for health
-  if (tauri?.invoke) {
-    // First try to get existing port (backend might already be running)
-    const existingPort = await getTauriBackendPort()
-    if (existingPort) {
-      cachedBackendPort = existingPort
-      console.log(`[API] Found existing Tauri backend port: ${existingPort}`)
-      
-      // Wait for it to be healthy
-      const isHealthy = await waitForBackendHealth(existingPort)
-      if (isHealthy) {
-        return
-      }
-    }
-    
-    // If no port yet, wait for backend-ready event
-    console.log('[API] Waiting for backend to start...')
-    return new Promise((resolve) => {
-      // Set a timeout to prevent infinite waiting
-      const timeout = setTimeout(() => {
-        console.warn('[API] Backend startup timeout, using default port')
-        resolve()
-      }, 30000)
-      
-      // Listen for backend-ready event
-      if (tauri?.event?.listen) {
-        tauri.event.listen('backend-ready', async (event: any) => {
-          const { port } = event.payload
-          if (port) {
-            cachedBackendPort = port
-            console.log(`[API] Backend ready event received, port: ${port}`)
-            clearTimeout(timeout)
-            resolve()
-          }
-        })
-      }
-      
-      // Also poll for port in case event was missed
-      const pollInterval = setInterval(async () => {
-        const port = await getTauriBackendPort()
-        if (port) {
-          const isHealthy = await waitForBackendHealth(port, 1)
-          if (isHealthy) {
-            cachedBackendPort = port
-            clearTimeout(timeout)
-            clearInterval(pollInterval)
-            resolve()
-          }
-        }
-      }, 1000)
-    })
-  }
-  
-  // Not in Tauri context - check localStorage for custom settings
+  // Check localStorage for custom settings (for development)
   const customPort = localStorage.getItem('custom_api_port')
   if (customPort) {
     cachedBackendPort = parseInt(customPort, 10)
     console.log(`[API] Using custom port from localStorage: ${cachedBackendPort}`)
+    return
+  }
+  
+  // Log which API we're using
+  const tauri = (window as any).__TAURI__
+  if (tauri) {
+    console.log(`[API] Running in Tauri, using cloud API: ${CLOUD_API_URL}`)
+  } else {
+    console.log(`[API] Running in browser, using cloud API: ${CLOUD_API_URL}`)
   }
 }
 
 /**
- * Listen for backend-ready events from Tauri
+ * Setup Tauri event listeners (for updates, etc.)
  */
 export const setupTauriListeners = (): void => {
   if (typeof window === 'undefined') return
@@ -125,36 +39,27 @@ export const setupTauriListeners = (): void => {
   const tauri = (window as any).__TAURI__
   if (!tauri?.event?.listen) return
   
-  // Listen for backend ready event
-  tauri.event.listen('backend-ready', (event: any) => {
-    const { port } = event.payload
-    if (port) {
-      cachedBackendPort = port
-      console.log(`[API] Backend ready on port: ${port}`)
-    }
-  })
-  
-  // Listen for backend error event
-  tauri.event.listen('backend-error', (event: any) => {
-    console.error('[API] Backend error:', event.payload)
-  })
+  console.log('[API] Tauri listeners initialized')
 }
 
 const getApiBaseUrl = () => {
   if (typeof window !== 'undefined') {
-    // Priority 1: Tauri-provided port
+    // Priority 1: Custom settings in localStorage (for development)
     if (cachedBackendPort) {
       return `http://127.0.0.1:${cachedBackendPort}`
     }
     
-    // Priority 2: Custom settings in localStorage
     const customHost = localStorage.getItem('custom_api_host')
     const customPort = localStorage.getItem('custom_api_port')
     if (customHost && customPort) {
       return `http://${customHost}:${customPort}`
     }
+    
+    // Default: use cloud API
+    return CLOUD_API_URL
   }
-  return (process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_BASE_URL).replace(/\/$/, '')
+  // Server-side rendering - use cloud API
+  return process.env.NEXT_PUBLIC_API_URL || CLOUD_API_URL
 }
 
 type QueryValue = string | number | boolean | null | undefined
@@ -180,19 +85,59 @@ const buildUrl = (path: string, params?: Record<string, QueryValue>) => {
   return url.toString()
 }
 
+// 友好的错误消息映射
+const FRIENDLY_ERROR_MESSAGES: Record<string, string> = {
+  'Email already registered': 'This email is already registered. Please sign in or use a different email.',
+  'Invalid credentials': 'Incorrect email or password. Please try again.',
+  'User not found': 'No account found with this email. Please sign up first.',
+  'Invalid email format': 'Please enter a valid email address.',
+  'Password too short': 'Password must be at least 6 characters long.',
+  'Token expired': 'Your session has expired. Please sign in again.',
+  'Unauthorized': 'Please sign in to continue.',
+}
+
+const getFriendlyErrorMessage = (detail: string): string => {
+  // Check for exact matches first
+  if (FRIENDLY_ERROR_MESSAGES[detail]) {
+    return FRIENDLY_ERROR_MESSAGES[detail]
+  }
+  
+  // Check for partial matches
+  for (const [key, message] of Object.entries(FRIENDLY_ERROR_MESSAGES)) {
+    if (detail.toLowerCase().includes(key.toLowerCase())) {
+      return message
+    }
+  }
+  
+  // Return the original detail if no friendly message found
+  return detail
+}
+
 const extractErrorMessage = async (response: Response) => {
   try {
     const data = await response.clone().json()
     if (typeof data === 'object' && data !== null) {
-      if ('detail' in data) return `${response.status} ${response.statusText}: ${data.detail}`
-      return `${response.status} ${response.statusText}: ${JSON.stringify(data)}`
+      if ('detail' in data) {
+        const friendlyMessage = getFriendlyErrorMessage(String(data.detail))
+        return friendlyMessage
+      }
+      // For other error formats, try to extract a meaningful message
+      if ('message' in data) return String(data.message)
+      if ('error' in data) return String(data.error)
     }
   } catch {
     // Fallback to text below
   }
 
+  // Fallback for non-JSON responses
   const text = await response.text()
-  return `${response.status} ${response.statusText}: ${text || 'Unknown error'}`
+  if (response.status === 400) return text || 'Invalid request. Please check your input.'
+  if (response.status === 401) return 'Please sign in to continue.'
+  if (response.status === 403) return 'You do not have permission to perform this action.'
+  if (response.status === 404) return 'The requested resource was not found.'
+  if (response.status === 500) return 'Something went wrong on our end. Please try again later.'
+  
+  return text || 'An unexpected error occurred. Please try again.'
 }
 
 async function apiFetch<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
@@ -307,9 +252,12 @@ export interface StructureNode {
   children?: StructureNode[]
 }
 
+// Takeaway can be a string (old format) or object with type and content (new format)
+export type TakeawayItem = string | { type: string; content: string }
+
 export interface ArticleStructure {
   root?: StructureNode
-  takeaways?: string[]
+  takeaways?: TakeawayItem[]
   legacySections?: {
     section: string
     description: string
@@ -332,10 +280,10 @@ export interface AnalysisResult {
   raw_response?: string
 }
 
-export const analyzeArticle = (newsId: number, scope?: AnalysisScope, userMode: 'english_learner' | 'ai_learner' = 'english_learner') => {
+export const analyzeArticle = (newsId: number, scope?: AnalysisScope, userMode: 'english_learner' | 'ai_learner' = 'english_learner', force: boolean = false) => {
   return apiFetch<{ status: string; analysis: AnalysisResult }>(`/api/news/${newsId}/analyze`, {
     method: 'POST',
-    body: { scope, user_mode: userMode },
+    body: { scope, user_mode: userMode, force },
   })
 }
 

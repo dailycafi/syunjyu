@@ -9,8 +9,16 @@ from dotenv import load_dotenv
 
 # Load environment variables from .env files
 # Priority: .env.local > .env (local overrides default)
-project_root = Path(__file__).parent.parent
-load_dotenv(project_root / ".env")
+# Check both the backend directory and parent directory for .env files
+backend_dir = Path(__file__).parent
+project_root = backend_dir.parent
+
+# Load from backend directory first (for server deployment)
+load_dotenv(backend_dir / ".env")
+load_dotenv(backend_dir / ".env.local", override=True)
+
+# Then load from project root (for local development)
+load_dotenv(project_root / ".env", override=True)
 load_dotenv(project_root / ".env.local", override=True)
 
 

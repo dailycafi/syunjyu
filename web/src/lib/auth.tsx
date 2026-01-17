@@ -37,12 +37,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Initialize API and Tauri listeners
   useEffect(() => {
     const init = async () => {
-      // Setup Tauri event listeners first
+      // Setup Tauri event listeners (for updates, etc.)
       setupTauriListeners()
       
-      // Initialize API (detect backend port)
+      // Initialize API (detect backend - cloud or local)
       await initializeApi()
       
+      // Cloud backend is always ready, no need to wait for local startup
       setBackendReady(true)
     }
     
