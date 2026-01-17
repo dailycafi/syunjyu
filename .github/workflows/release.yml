@@ -53,22 +53,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # macOS ARM64 (Apple Silicon)
+          # macOS ARM64 (Apple Silicon) - Primary target
           - platform: macos-latest
             target: aarch64-apple-darwin
             args: --target aarch64-apple-darwin
-          # macOS x86_64 (Intel)
-          - platform: macos-latest
-            target: x86_64-apple-darwin
-            args: --target x86_64-apple-darwin
-          # Windows
-          - platform: windows-latest
-            target: x86_64-pc-windows-msvc
-            args: ''
-          # Linux
-          - platform: ubuntu-22.04
-            target: x86_64-unknown-linux-gnu
-            args: ''
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -80,50 +68,32 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
 
-      - name: Install dependencies (Ubuntu)
-        if: matrix.platform == 'ubuntu-22.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
-
       - name: Install root dependencies
-        run: npm ci
+        run: npm install
 
       - name: Install frontend dependencies
-        run: cd web && npm ci
+        run: cd web && npm install
 
       - name: Build frontend
         run: cd web && npm run build
 
-      - name: Update version in tauri.conf.json (Unix)
-        if: matrix.platform != 'windows-latest'
+      - name: Update version in tauri.conf.json
         run: |
           cd src-tauri
           sed -i.bak 's/"version": "[^"]*"/"version": "${{ needs.create-release.outputs.version }}"/' tauri.conf.json
-
-      - name: Update version in tauri.conf.json (Windows)
-        if: matrix.platform == 'windows-latest'
-        run: |
-          cd src-tauri
-          (Get-Content tauri.conf.json) -replace '"version": "[^"]*"', '"version": "${{ needs.create-release.outputs.version }}"' | Set-Content tauri.conf.json
-        shell: pwsh
+          cat tauri.conf.json | grep version
 
       - name: Build Tauri App
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ matrix.args }}
