@@ -89,9 +89,11 @@ export async function generateStaticParams(): Promise<NewsIdParam[]> {
   return ids.map((id) => ({ id }))
 }
 
-// For static export, dynamicParams must be false
-// All paths must be generated at build time via generateStaticParams
-export const dynamicParams = false
+// For static export (production), dynamicParams must be false
+// In development mode, we allow dynamic params for easier testing
+// Note: dynamicParams must be a static boolean, so we use true here
+// and rely on generateStaticParams for production builds
+export const dynamicParams = true
 
 export default async function NewsDetailPage({ params }: NewsDetailPageProps) {
   const { id } = await params

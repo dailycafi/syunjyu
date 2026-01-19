@@ -1,0 +1,8 @@
+{{!-- Navigation partial for custom navigation rendering --}}
+<nav class="site-nav-menu">
+    {{#foreach navigation}}
+    <a href="{{url}}" class="nav-item {{#if current}}active{{/if}}">
+        {{label}}
+    </a>
+    {{/foreach}}
+</nav>

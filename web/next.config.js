@@ -1,3 +1,11 @@
+const path = require('path')
+const { loadEnvConfig } = require('@next/env')
+
+// Load environment variables from project root .env files
+// This allows sharing config between backend and frontend
+const projectRoot = path.resolve(__dirname, '..')
+loadEnvConfig(projectRoot)
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: process.env.NODE_ENV === 'production' ? 'export' : undefined,  // Enable static export for Tauri only in production

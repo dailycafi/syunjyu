@@ -31,7 +31,7 @@ from concept_extractor import (
 from ai_filter import filter_news_with_ai
 from article_analyzer import analyze_article, get_reliable_phonetic
 from pdf_exporter import generate_news_pdf, generate_concepts_pdf, generate_phrases_pdf
-from passlib.context import CryptContext
+import bcrypt
 from jose import jwt
 from datetime import datetime, timedelta
 from tts_service import generate_speech_minimax, TTSError
@@ -193,6 +193,11 @@ class HideRequest(BaseModel):
 class AuthRequest(BaseModel):
     email: str
     password: str
+    invite_code: Optional[str] = None
+
+
+# Valid invite codes
+VALID_INVITE_CODES = ["lovets0301"]
 
 
 class SettingUpdate(BaseModel):
@@ -1338,7 +1343,6 @@ async def export_pdf(
 
 # ==================== Auth Configuration ====================
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "syunjyu-secret-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 30
@@ -1347,13 +1351,14 @@ ACCESS_TOKEN_EXPIRE_DAYS = 30
 def hash_password(password: str) -> str:
     # bcrypt has a 72 byte limit, truncate if necessary
     password_bytes = password.encode('utf-8')[:72]
-    return pwd_context.hash(password_bytes.decode('utf-8', errors='ignore'))
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password_bytes, salt).decode('utf-8')
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     # bcrypt has a 72 byte limit, truncate if necessary
     password_bytes = plain_password.encode('utf-8')[:72]
-    return pwd_context.verify(password_bytes.decode('utf-8', errors='ignore'), hashed_password)
+    return bcrypt.checkpw(password_bytes, hashed_password.encode('utf-8'))
 
 
 def create_access_token(user_id: int, email: str) -> str:
@@ -1368,6 +1373,10 @@ def create_access_token(user_id: int, email: str) -> str:
 @app.post("/api/auth/register")
 async def register(request: AuthRequest):
     """Register new user - directly in backend, no sync server needed"""
+    # Verify invite code
+    if not request.invite_code or request.invite_code not in VALID_INVITE_CODES:
+        raise HTTPException(status_code=400, detail="Invalid invite code")
+    
     conn = db.get_connection()
     cursor = conn.cursor()
     

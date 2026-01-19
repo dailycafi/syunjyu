@@ -1,0 +1,92 @@
+{{!< default}}
+
+<div class="letters-container">
+    <header class="letters-header">
+        <div class="envelope-icon">
+            <svg viewBox="0 0 100 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="5" y="10" width="90" height="60" rx="4" stroke="currentColor" stroke-width="2" fill="none"/>
+                <path d="M5 14 L50 45 L95 14" stroke="currentColor" stroke-width="2" fill="none"/>
+                <path d="M5 66 L35 40" stroke="currentColor" stroke-width="2" fill="none"/>
+                <path d="M95 66 L65 40" stroke="currentColor" stroke-width="2" fill="none"/>
+            </svg>
+        </div>
+        <h1 class="letters-title">给 Syunjyu 的信</h1>
+        <p class="letters-subtitle">{{@site.description}}</p>
+    </header>
+
+    <section class="letters-list">
+        {{#foreach posts}}
+        <article class="letter-card {{post_class}}">
+            <div class="letter-paper">
+                <div class="letter-date">
+                    <time datetime="{{date format="YYYY-MM-DD"}}">
+                        {{date format="YYYY年M月D日"}}
+                    </time>
+                </div>
+                
+                <h2 class="letter-title">
+                    <a href="{{url}}">{{title}}</a>
+                </h2>
+                
+                {{#if custom_excerpt}}
+                <p class="letter-excerpt">{{custom_excerpt}}</p>
+                {{else}}
+                <p class="letter-excerpt">{{excerpt words="60"}}</p>
+                {{/if}}
+                
+                <div class="letter-meta">
+                    {{#primary_author}}
+                    <span class="letter-author">
+                        <span class="author-avatar">
+                            {{#if profile_image}}
+                            <img src="{{profile_image}}" alt="{{name}}">
+                            {{else}}
+                            <span class="avatar-placeholder">{{name.[0]}}</span>
+                            {{/if}}
+                        </span>
+                        {{name}}
+                    </span>
+                    {{/primary_author}}
+                    
+                    {{#if primary_tag}}
+                    <span class="letter-tag">
+                        <a href="{{primary_tag.url}}">{{primary_tag.name}}</a>
+                    </span>
+                    {{/if}}
+                </div>
+                
+                <a href="{{url}}" class="letter-read-more">
+                    阅读全文
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                </a>
+            </div>
+        </article>
+        {{/foreach}}
+    </section>
+
+    {{#if pagination.pages}}
+    <nav class="pagination">
+        {{#if pagination.prev}}
+        <a href="{{pagination.prev}}" class="pagination-prev">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            更新的信
+        </a>
+        {{/if}}
+        
+        <span class="pagination-info">第 {{pagination.page}} 页，共 {{pagination.pages}} 页</span>
+        
+        {{#if pagination.next}}
+        <a href="{{pagination.next}}" class="pagination-next">
+            更早的信
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+        </a>
+        {{/if}}
+    </nav>
+    {{/if}}
+</div>

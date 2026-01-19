@@ -22,7 +22,7 @@ interface AuthContextType {
   isAuthenticated: boolean
   backendReady: boolean
   login: (email: string, password: string) => Promise<void>
-  register: (email: string, password: string) => Promise<void>
+  register: (email: string, password: string, inviteCode: string) => Promise<void>
   logout: (clearLocalData?: boolean) => Promise<void>
   refreshAuth: () => Promise<void>
 }
@@ -87,8 +87,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await refreshAuth()
   }
 
-  const register = async (email: string, password: string) => {
-    await apiRegister(email, password)
+  const register = async (email: string, password: string, inviteCode: string) => {
+    await apiRegister(email, password, inviteCode)
     await refreshAuth()
   }
 

@@ -170,10 +170,11 @@ export default function AccountPage() {
     try {
       await deleteAccount()
       showToast('账户已删除', 'success')
+      // Logout to return to login screen
+      await logout(true)
     } catch (error) {
       console.error('Failed to delete account:', error)
       showToast('删除失败', 'error')
-    } finally {
       setDeletingAccount(false)
       setShowDeleteConfirm(false)
       setDeleteConfirmText('')

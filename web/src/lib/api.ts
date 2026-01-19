@@ -1,32 +1,38 @@
-// Cloud API endpoint - used when not running in Tauri
+// Cloud API endpoint - used in production
 const CLOUD_API_URL = 'https://api.syunjyu.com'
 // Local fallback for development
 const LOCAL_API_URL = 'http://127.0.0.1:8500'
 
-// Cache for custom backend port (for development only)
-let cachedBackendPort: number | null = null
+/**
+ * Get API base URL from environment variable or default
+ * Priority:
+ * 1. NEXT_PUBLIC_API_URL environment variable (set in .env)
+ * 2. localStorage custom_api_port (for runtime override)
+ * 3. Cloud API (default)
+ */
+const getConfiguredApiUrl = (): string => {
+  // Environment variable takes highest priority (set in .env or .env.local)
+  const envApiUrl = process.env.NEXT_PUBLIC_API_URL
+  if (envApiUrl) {
+    return envApiUrl
+  }
+  return CLOUD_API_URL
+}
 
 /**
  * Initialize API
- * Now uses cloud backend by default, no need to wait for local backend
+ * Logs which API endpoint is being used
  */
 export const initializeApi = async (): Promise<void> => {
   if (typeof window === 'undefined') return
   
-  // Check localStorage for custom settings (for development)
-  const customPort = localStorage.getItem('custom_api_port')
-  if (customPort) {
-    cachedBackendPort = parseInt(customPort, 10)
-    console.log(`[API] Using custom port from localStorage: ${cachedBackendPort}`)
-    return
-  }
-  
-  // Log which API we're using
+  const apiUrl = getApiBaseUrl()
   const tauri = (window as any).__TAURI__
+  
   if (tauri) {
-    console.log(`[API] Running in Tauri, using cloud API: ${CLOUD_API_URL}`)
+    console.log(`[API] Running in Tauri, using API: ${apiUrl}`)
   } else {
-    console.log(`[API] Running in browser, using cloud API: ${CLOUD_API_URL}`)
+    console.log(`[API] Running in browser, using API: ${apiUrl}`)
   }
 }
 
@@ -43,23 +49,23 @@ export const setupTauriListeners = (): void => {
 }
 
 const getApiBaseUrl = () => {
+  // Priority 1: Environment variable (NEXT_PUBLIC_API_URL in .env)
+  const envApiUrl = process.env.NEXT_PUBLIC_API_URL
+  if (envApiUrl) {
+    return envApiUrl
+  }
+  
+  // Priority 2: localStorage override (for runtime configuration)
   if (typeof window !== 'undefined') {
-    // Priority 1: Custom settings in localStorage (for development)
-    if (cachedBackendPort) {
-      return `http://127.0.0.1:${cachedBackendPort}`
-    }
-    
-    const customHost = localStorage.getItem('custom_api_host')
     const customPort = localStorage.getItem('custom_api_port')
-    if (customHost && customPort) {
+    if (customPort) {
+      const customHost = localStorage.getItem('custom_api_host') || '127.0.0.1'
       return `http://${customHost}:${customPort}`
     }
-    
-    // Default: use cloud API
-    return CLOUD_API_URL
   }
-  // Server-side rendering - use cloud API
-  return process.env.NEXT_PUBLIC_API_URL || CLOUD_API_URL
+  
+  // Default: use cloud API
+  return CLOUD_API_URL
 }
 
 type QueryValue = string | number | boolean | null | undefined
@@ -94,6 +100,7 @@ const FRIENDLY_ERROR_MESSAGES: Record<string, string> = {
   'Password too short': 'Password must be at least 6 characters long.',
   'Token expired': 'Your session has expired. Please sign in again.',
   'Unauthorized': 'Please sign in to continue.',
+  'Invalid invite code': 'Invalid invite code. Please enter a valid invite code to register.',
 }
 
 const getFriendlyErrorMessage = (detail: string): string => {
@@ -613,10 +620,10 @@ export const exportPDF = (params: ExportPdfParams) => {
 
 // ===== Sync & Auth =====
 
-export const register = (email: string, password: string) => {
+export const register = (email: string, password: string, inviteCode: string) => {
   return apiFetch('/api/auth/register', {
     method: 'POST',
-    body: { email, password },
+    body: { email, password, invite_code: inviteCode },
   })
 }
 

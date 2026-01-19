@@ -292,14 +292,34 @@ const renderHighlightedContent = (
   interface HighlightRange {
     start: number
     end: number
-    type: 'local' | 'global' | 'ai' | 'playback' | 'markdown_table'
+    type: 'local' | 'global' | 'ai' | 'playback' | 'markdown_table' | 'code_block'
     payload?: any
   }
 
   const ranges: HighlightRange[] = []
   const textLower = text.toLowerCase()
 
-  // 0. Markdown Tables (Highest Priority - Structural)
+  // 0a. Code Blocks (Highest Priority - Structural)
+  // Detect fenced code blocks like ```python ... ```
+  const CODE_BLOCK_REGEX = /```(\w*)\n?([\s\S]*?)```/g
+  let codeMatch
+  CODE_BLOCK_REGEX.lastIndex = 0
+  
+  while ((codeMatch = CODE_BLOCK_REGEX.exec(text)) !== null) {
+      const language = codeMatch[1] || 'text'
+      const codeContent = codeMatch[2]
+      const matchIndex = codeMatch.index
+      const matchLength = codeMatch[0].length
+      
+      ranges.push({
+          start: matchIndex,
+          end: matchIndex + matchLength,
+          type: 'code_block',
+          payload: { language, code: codeContent }
+      })
+  }
+
+  // 0b. Markdown Tables (Highest Priority - Structural)
   // Detect tables to preserve their structure and render as Markdown
   // Regex to match GFM tables: Header row, Separator row, optional Data rows
   // Adjusted to allow rows that don't strictly start/end with | but contain |
@@ -547,10 +567,132 @@ const renderHighlightedContent = (
   const segments: ReactNode[] = []
   let cursor = 0
   const length = text.length
+  let segmentCounter = 0 // Unique counter for generating keys
+
+  // Helper function to render plain text with basic Markdown formatting
+  // This function processes inline Markdown (bold, italic, code) while preserving line breaks
+  const renderMarkdownText = (plainText: string, uniqueId: number): ReactNode => {
+    // Check if text contains any inline Markdown formatting
+    const hasInlineMarkdown = /\*\*[^*\n]+\*\*|\*[^*\n]+\*|`[^`\n]+`/.test(plainText)
+    // Check if text contains block-level Markdown (headers: ##, ###, ####)
+    const hasBlockMarkdown = /^#{2,4} /m.test(plainText)
+    
+    if (!hasInlineMarkdown && !hasBlockMarkdown) {
+      // For plain text, wrap in a span with key to avoid React warnings
+      return <span key={`plain-${uniqueId}`}>{plainText}</span>
+    }
+    
+    // Process text line by line to preserve line breaks
+    const lines = plainText.split('\n')
+    const elements: ReactNode[] = []
+    
+    lines.forEach((line, lineIndex) => {
+      if (lineIndex > 0) {
+        // Add line break between lines
+        elements.push('\n')
+      }
+      
+      // Check for headers (h2, h3, h4)
+      const h2Match = line.match(/^## (.+)$/)
+      const h3Match = line.match(/^### (.+)$/)
+      const h4Match = line.match(/^#### (.+)$/)
+      
+      if (h4Match) {
+        elements.push(
+          <span key={`h4-${uniqueId}-${lineIndex}`} className="block text-base font-semibold mt-3 mb-1 text-slate-700">
+            {h4Match[1]}
+          </span>
+        )
+        return
+      }
+      
+      if (h3Match) {
+        elements.push(
+          <span key={`h3-${uniqueId}-${lineIndex}`} className="block text-lg font-semibold mt-4 mb-2 text-slate-700">
+            {h3Match[1]}
+          </span>
+        )
+        return
+      }
+      
+      if (h2Match) {
+        elements.push(
+          <span key={`h2-${uniqueId}-${lineIndex}`} className="block text-xl font-bold mt-6 mb-3 text-slate-800">
+            {h2Match[1]}
+          </span>
+        )
+        return
+      }
+      
+      // Process inline markdown (bold, italic, inline code)
+      if (/\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`/.test(line)) {
+        // Split by markdown patterns and process
+        const parts: ReactNode[] = []
+        let remaining = line
+        let partIndex = 0
+        
+        while (remaining.length > 0) {
+          // Match bold (**text**), italic (*text*), or inline code (`text`)
+          const match = remaining.match(/^(.*?)(\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`)(.*)$/)
+          
+          if (match) {
+            // Add text before the match
+            if (match[1]) {
+              parts.push(<span key={`t-${uniqueId}-${lineIndex}-${partIndex++}`}>{match[1]}</span>)
+            }
+            
+            // Add the formatted text
+            if (match[3]) {
+              // Bold
+              parts.push(<strong key={`b-${uniqueId}-${lineIndex}-${partIndex++}`} className="font-bold">{match[3]}</strong>)
+            } else if (match[4]) {
+              // Italic
+              parts.push(<em key={`i-${uniqueId}-${lineIndex}-${partIndex++}`} className="italic">{match[4]}</em>)
+            } else if (match[5]) {
+              // Inline code
+              parts.push(<code key={`c-${uniqueId}-${lineIndex}-${partIndex++}`} className="bg-slate-100 px-1 py-0.5 rounded text-sm font-mono text-pink-600">{match[5]}</code>)
+            }
+            
+            remaining = match[6] || ''
+          } else {
+            // No more matches, add remaining text
+            parts.push(<span key={`r-${uniqueId}-${lineIndex}-${partIndex++}`}>{remaining}</span>)
+            remaining = ''
+          }
+        }
+        
+        elements.push(<span key={`line-${uniqueId}-${lineIndex}`}>{parts}</span>)
+      } else {
+        // Plain line, just add it
+        elements.push(<span key={`plain-${uniqueId}-${lineIndex}`}>{line}</span>)
+      }
+    })
+    
+    return <span key={`md-${uniqueId}`}>{elements}</span>
+  }
 
   finalRanges.forEach((r) => {
     if (r.start > cursor) {
-        segments.push(text.slice(cursor, r.start))
+        const plainText = text.slice(cursor, r.start)
+        segments.push(renderMarkdownText(plainText, segmentCounter++))
+    }
+
+    if (r.type === 'code_block') {
+        const { language, code } = r.payload
+        segments.push(
+            <div key={`code-${r.start}`} className="my-6 not-prose">
+                {language && (
+                    <div className="bg-slate-800 text-slate-400 text-xs px-4 py-2 rounded-t-lg font-mono border-b border-slate-700">
+                        {language}
+                    </div>
+                )}
+                <pre className={`bg-slate-900 text-slate-100 p-4 overflow-x-auto text-sm font-mono leading-relaxed ${language ? 'rounded-b-lg' : 'rounded-lg'}`}>
+                    <code>{code.trim()}</code>
+                </pre>
+            </div>
+        )
+        cursor = r.end
+        return
     }
 
     if (r.type === 'markdown_table') {
@@ -702,7 +844,8 @@ const renderHighlightedContent = (
   })
 
   if (cursor < length) {
-    segments.push(text.slice(cursor))
+    const remainingText = text.slice(cursor)
+    segments.push(renderMarkdownText(remainingText, segmentCounter++))
   }
 
   return segments

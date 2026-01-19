@@ -153,7 +153,12 @@ export default function Sidebar({ isMobile = false }: { isMobile?: boolean }) {
         {/* Simplified Navigation for Mobile */}
         <nav className="flex-1 flex items-center justify-around">
           {navigation.map((item) => {
-            const isActive = pathname === item.href
+            // Normalize paths for comparison (handle trailing slashes)
+            const normalizedPath = pathname.endsWith('/') ? pathname : pathname + '/'
+            const normalizedHref = item.href.endsWith('/') ? item.href : item.href + '/'
+            const isActive = item.href === '/' 
+              ? pathname === '/' 
+              : normalizedPath.startsWith(normalizedHref)
             // For Settings/Account in mobile view, we might want to hide them or keep them?
             // Let's show top 4 items or just icons
             return (
@@ -286,7 +291,12 @@ export default function Sidebar({ isMobile = false }: { isMobile?: boolean }) {
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
         {navigation.map((item) => {
-          const isActive = pathname === item.href
+          // Normalize paths for comparison (handle trailing slashes)
+          const normalizedPath = pathname.endsWith('/') ? pathname : pathname + '/'
+          const normalizedHref = item.href.endsWith('/') ? item.href : item.href + '/'
+          const isActive = item.href === '/' 
+            ? pathname === '/' 
+            : normalizedPath.startsWith(normalizedHref)
           return (
             <Link
               key={item.href}

@@ -12,28 +12,45 @@ import db
 from config import config
 
 
-CONCEPT_EXTRACTION_PROMPT = """You are an AI expert tasked with extracting key AI-related concepts and terminology from a news article.
+CONCEPT_EXTRACTION_PROMPT = """You are a technical expert tasked with extracting key technical concepts and terminology from a news article.
 
-Please analyze the following article and extract important AI concepts, terms, and techniques mentioned.
+IMPORTANT GUIDELINES:
+1. Extract terms that are SPECIFIC to the article's main topic and would provide learning value
+2. DO NOT extract overly generic or basic terms like:
+   - Programming language names (Python, Java, JavaScript, etc.)
+   - Basic data types (list, string, integer, etc.)
+   - Common programming concepts everyone knows (variable, function, loop, etc.)
+   - Generic terms (data, code, software, algorithm in general sense)
+3. DO extract:
+   - Specific techniques, methods, or algorithms mentioned (e.g., "gradient descent", "backpropagation")
+   - Domain-specific terminology that requires explanation (e.g., "attention mechanism", "tokenization")
+   - Named libraries/frameworks when their specific features are discussed (not just mentioned)
+   - Technical concepts that are central to understanding the article's main point
 
 For each concept, provide:
 1. The term/concept name
-2. A brief definition or explanation (1-2 sentences)
+2. A brief definition or explanation (1-2 sentences) that relates to how it's used in this article
 
 Return your response as a JSON array of objects with 'term' and 'definition' fields.
 
-Example format:
+Example of GOOD extractions (specific, relevant):
 [
-  {"term": "Transformer", "definition": "A neural network architecture based on self-attention mechanisms, widely used in modern language models."},
-  {"term": "Fine-tuning", "definition": "The process of adapting a pre-trained model to a specific task by training it on task-specific data."}
+  {"term": "Self-attention mechanism", "definition": "A technique where each element in a sequence computes attention weights with all other elements, enabling the model to capture long-range dependencies."},
+  {"term": "Fine-tuning", "definition": "The process of adapting a pre-trained model to a specific downstream task by training on task-specific data with a lower learning rate."}
 ]
+
+Example of BAD extractions (too generic, avoid these):
+- "Python" - too basic, everyone knows what Python is
+- "List" - basic data structure
+- "Function" - fundamental programming concept
+- "Data Science" - too broad
 
 Article title: {title}
 
 Article content:
 {content}
 
-Extract 3-10 relevant AI concepts from this article. Return only the JSON array, no additional text."""
+Extract 3-8 highly relevant technical concepts that are SPECIFIC to this article's topic. If the article doesn't contain specialized technical terms worth extracting, return an empty array []. Quality over quantity - only include terms that provide real learning value. Return only the JSON array, no additional text."""
 
 
 async def extract_concepts_from_news(

@@ -1,0 +1,40 @@
+<header class="site-header">
+    <div class="header-inner">
+        <a href="{{@site.url}}" class="site-logo">
+            {{#if @site.logo}}
+            <img src="{{@site.logo}}" alt="{{@site.title}}">
+            {{else}}
+            <svg width="36" height="36" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="50" cy="50" r="45" stroke="currentColor" stroke-width="2"/>
+                <path d="M30 50 L50 35 L70 50 L50 65 Z" fill="currentColor" opacity="0.2"/>
+                <path d="M30 50 L50 35 L70 50" stroke="currentColor" stroke-width="2" fill="none"/>
+                <path d="M30 50 L50 65 L70 50" stroke="currentColor" stroke-width="2" fill="none"/>
+            </svg>
+            {{/if}}
+            <span class="site-logo-text">{{@site.title}}</span>
+        </a>
+        
+        <nav class="site-nav">
+            {{navigation}}
+            
+            {{#if @site.members_enabled}}
+            {{#unless @member}}
+            <a href="#/portal/signin" class="nav-signin">登录</a>
+            {{else}}
+            <a href="#/portal/account" class="nav-account">
+                <span class="account-avatar">
+                    {{#if @member.avatar_image}}
+                    <img src="{{@member.avatar_image}}" alt="{{@member.name}}">
+                    {{else}}
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="8" r="4"/>
+                        <path d="M4 20c0-4 4-6 8-6s8 2 8 6"/>
+                    </svg>
+                    {{/if}}
+                </span>
+            </a>
+            {{/unless}}
+            {{/if}}
+        </nav>
+    </div>
+</header>

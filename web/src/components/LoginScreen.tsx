@@ -23,6 +23,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [inviteCode, setInviteCode] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [mounted, setMounted] = useState(false)
@@ -56,12 +57,17 @@ export default function LoginScreen() {
       return
     }
 
+    if (!isLoginMode && !inviteCode.trim()) {
+      setError('Invite code is required')
+      return
+    }
+
     setSubmitting(true)
     try {
       if (isLoginMode) {
         await login(email, password)
       } else {
-        await register(email, password)
+        await register(email, password, inviteCode.trim())
       }
     } catch (err: any) {
       setError(err?.message || 'Authentication failed. Please try again.')
@@ -74,6 +80,7 @@ export default function LoginScreen() {
     setIsLoginMode(!isLoginMode)
     setError('')
     setConfirmPassword('')
+    setInviteCode('')
   }
 
   if (!mounted) {
@@ -199,19 +206,34 @@ export default function LoginScreen() {
             </div>
 
             {!isLoginMode && (
-              <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Confirm Password
-                </label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full px-4 py-3 rounded-lg border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#b0416b] focus:ring-1 focus:ring-[#b0416b] transition-all bg-slate-50 focus:bg-white"
-                  autoComplete="new-password"
-                />
-              </div>
+              <>
+                <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Confirm Password
+                  </label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full px-4 py-3 rounded-lg border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#b0416b] focus:ring-1 focus:ring-[#b0416b] transition-all bg-slate-50 focus:bg-white"
+                    autoComplete="new-password"
+                  />
+                </div>
+                <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Invite Code
+                  </label>
+                  <input
+                    type="text"
+                    value={inviteCode}
+                    onChange={(e) => setInviteCode(e.target.value)}
+                    placeholder="Enter your invite code"
+                    className="w-full px-4 py-3 rounded-lg border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#b0416b] focus:ring-1 focus:ring-[#b0416b] transition-all bg-slate-50 focus:bg-white"
+                    autoComplete="off"
+                  />
+                </div>
+              </>
             )}
 
             {error && (
