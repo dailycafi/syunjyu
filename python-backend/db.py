@@ -240,6 +240,42 @@ def init_database():
         )
     """)
 
+    # Letters comments table (for Ghost blog)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS letters_comments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id TEXT NOT NULL,
+            parent_id INTEGER DEFAULT NULL,
+            author TEXT NOT NULL,
+            content TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    
+    # Add parent_id column if not exists (migration for existing tables)
+    if not column_exists(cursor, "letters_comments", "parent_id"):
+        cursor.execute("ALTER TABLE letters_comments ADD COLUMN parent_id INTEGER DEFAULT NULL")
+    
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_letters_comments_post ON letters_comments(post_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_letters_comments_parent ON letters_comments(parent_id)")
+
+    # Letters notifications table (for Ghost blog)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS letters_notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            recipient TEXT NOT NULL,
+            type TEXT NOT NULL,
+            post_id TEXT,
+            comment_id INTEGER,
+            from_user TEXT NOT NULL,
+            message TEXT,
+            is_read INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_letters_notifications_recipient ON letters_notifications(recipient)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_letters_notifications_unread ON letters_notifications(recipient, is_read)")
+
     # Create indexes for better performance
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_news_date ON news(date)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_news_starred ON news(starred)")

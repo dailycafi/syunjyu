@@ -1678,6 +1678,234 @@ async def delete_phrase(phrase_id: int):
     return {"status": "success", "message": "Phrase deleted"}
 
 
+# ============================================
+# Letters Comments API (for Ghost blog)
+# ============================================
+
+class LettersComment(BaseModel):
+    post_id: str
+    author: str  # 'syunjyu' or 'fei'
+    content: str
+    parent_id: Optional[int] = None  # For nested replies
+
+@app.get("/letters/comments/{post_id}")
+async def get_letters_comments(post_id: str):
+    """Get all comments for a post (nested structure)"""
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT * FROM letters_comments WHERE post_id = ? ORDER BY created_at ASC",
+        (post_id,)
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    
+    # Build nested structure
+    comments = [dict(row) for row in rows]
+    
+    # Create a map of id -> comment
+    comment_map = {c['id']: {**c, 'replies': []} for c in comments}
+    
+    # Build tree structure
+    root_comments = []
+    for c in comments:
+        if c['parent_id'] is None:
+            root_comments.append(comment_map[c['id']])
+        else:
+            parent = comment_map.get(c['parent_id'])
+            if parent:
+                parent['replies'].append(comment_map[c['id']])
+    
+    return root_comments
+
+@app.post("/letters/comments")
+async def create_letters_comment(comment: LettersComment):
+    """Create a new comment or reply"""
+    # Only allow syunjyu and fei
+    if comment.author.lower() not in ['syunjyu', 'fei']:
+        raise HTTPException(status_code=403, detail="Invalid author")
+    
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO letters_comments (post_id, parent_id, author, content) VALUES (?, ?, ?, ?)",
+        (comment.post_id, comment.parent_id, comment.author.lower(), comment.content)
+    )
+    comment_id = cursor.lastrowid
+    
+    # Create notification for the other user
+    author = comment.author.lower()
+    recipient = 'fei' if author == 'syunjyu' else 'syunjyu'
+    
+    if comment.parent_id:
+        # Reply notification - notify the parent comment's author
+        cursor.execute("SELECT author FROM letters_comments WHERE id = ?", (comment.parent_id,))
+        parent = cursor.fetchone()
+        if parent and parent['author'] != author:
+            recipient = parent['author']
+            from_name = 'Syunjyu' if author == 'syunjyu' else 'Fei'
+            message = f"{from_name} 回复了你的留言"
+            cursor.execute(
+                "INSERT INTO letters_notifications (recipient, type, post_id, comment_id, from_user, message) VALUES (?, ?, ?, ?, ?, ?)",
+                (recipient, 'reply', comment.post_id, comment_id, author, message)
+            )
+    else:
+        # New comment notification
+        from_name = 'Syunjyu' if author == 'syunjyu' else 'Fei'
+        message = f"{from_name} 在文章中留言了"
+        cursor.execute(
+            "INSERT INTO letters_notifications (recipient, type, post_id, comment_id, from_user, message) VALUES (?, ?, ?, ?, ?, ?)",
+            (recipient, 'comment', comment.post_id, comment_id, author, message)
+        )
+    
+    conn.commit()
+    
+    # Get the created comment
+    cursor.execute("SELECT * FROM letters_comments WHERE id = ?", (comment_id,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    return dict(row)
+
+class LettersCommentUpdate(BaseModel):
+    author: str
+    content: str
+
+@app.put("/letters/comments/{comment_id}")
+async def update_letters_comment(comment_id: int, update: LettersCommentUpdate):
+    """Update a comment (only by the author)"""
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    # Check if comment exists and belongs to author
+    cursor.execute("SELECT author FROM letters_comments WHERE id = ?", (comment_id,))
+    row = cursor.fetchone()
+    
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Comment not found")
+    
+    if row['author'] != update.author.lower():
+        conn.close()
+        raise HTTPException(status_code=403, detail="Cannot edit other's comment")
+    
+    cursor.execute(
+        "UPDATE letters_comments SET content = ? WHERE id = ?",
+        (update.content, comment_id)
+    )
+    conn.commit()
+    
+    # Get updated comment
+    cursor.execute("SELECT * FROM letters_comments WHERE id = ?", (comment_id,))
+    updated = cursor.fetchone()
+    conn.close()
+    
+    return dict(updated)
+
+@app.delete("/letters/comments/{comment_id}")
+async def delete_letters_comment(comment_id: int, author: str):
+    """Delete a comment (only by the author)"""
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    # Check if comment exists and belongs to author
+    cursor.execute("SELECT author FROM letters_comments WHERE id = ?", (comment_id,))
+    row = cursor.fetchone()
+    
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Comment not found")
+    
+    if row['author'] != author.lower():
+        conn.close()
+        raise HTTPException(status_code=403, detail="Cannot delete other's comment")
+    
+    cursor.execute("DELETE FROM letters_comments WHERE id = ?", (comment_id,))
+    conn.commit()
+    conn.close()
+    
+    return {"success": True}
+
+
+# ============================================
+# Letters Notifications API
+# ============================================
+
+@app.get("/letters/notifications/{user}")
+async def get_letters_notifications(user: str, unread_only: bool = True):
+    """Get notifications for a user"""
+    if user.lower() not in ['syunjyu', 'fei']:
+        raise HTTPException(status_code=403, detail="Invalid user")
+    
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    
+    if unread_only:
+        cursor.execute(
+            "SELECT * FROM letters_notifications WHERE recipient = ? AND is_read = 0 ORDER BY created_at DESC",
+            (user.lower(),)
+        )
+    else:
+        cursor.execute(
+            "SELECT * FROM letters_notifications WHERE recipient = ? ORDER BY created_at DESC LIMIT 50",
+            (user.lower(),)
+        )
+    
+    rows = cursor.fetchall()
+    conn.close()
+    
+    return [dict(row) for row in rows]
+
+
+@app.get("/letters/notifications/{user}/count")
+async def get_unread_notification_count(user: str):
+    """Get unread notification count for a user"""
+    if user.lower() not in ['syunjyu', 'fei']:
+        raise HTTPException(status_code=403, detail="Invalid user")
+    
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT COUNT(*) as count FROM letters_notifications WHERE recipient = ? AND is_read = 0",
+        (user.lower(),)
+    )
+    row = cursor.fetchone()
+    conn.close()
+    
+    return {"count": row['count'] if row else 0}
+
+
+@app.post("/letters/notifications/{notification_id}/read")
+async def mark_notification_read(notification_id: int):
+    """Mark a notification as read"""
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE letters_notifications SET is_read = 1 WHERE id = ?",
+        (notification_id,)
+    )
+    conn.commit()
+    conn.close()
+    return {"success": True}
+
+
+@app.post("/letters/notifications/{user}/read-all")
+async def mark_all_notifications_read(user: str):
+    """Mark all notifications as read for a user"""
+    if user.lower() not in ['syunjyu', 'fei']:
+        raise HTTPException(status_code=403, detail="Invalid user")
+    
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE letters_notifications SET is_read = 1 WHERE recipient = ?",
+        (user.lower(),)
+    )
+    conn.commit()
+    conn.close()
+    return {"success": True}
+
+
 def parse_args():
     """Parse command line arguments"""
     import argparse

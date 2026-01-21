@@ -3,7 +3,6 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{meta_title}}</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,6 +12,10 @@
     
     {{ghost_head}}
     
+    {{!-- 强制覆盖 Ghost 的标题和 favicon --}}
+    <title>Sealed with Love</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>❤️</text></svg>">
+    
     <style>
         :root {
             --accent-color: {{@custom.accent_color}};
@@ -21,7 +24,32 @@
     </style>
 </head>
 <body class="{{body_class}}">
-    <div class="site-wrapper">
+    {{!-- Love Code 保护层 --}}
+    <div id="love-gate" class="love-gate">
+        <div class="love-container">
+            <div class="love-icon">💌</div>
+            <h1 class="love-title">Sealed with Love</h1>
+            <p class="love-subtitle">Enter the code to unlock</p>
+            
+            <form id="love-form" class="love-form">
+                <input type="password" id="love-input" class="love-input" placeholder="Enter code..." autocomplete="off">
+                <button type="submit" class="love-submit">
+                    Unlock
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                </button>
+            </form>
+            <p id="love-error" class="love-error"></p>
+            
+            <p class="love-hint">
+                <span class="hint-label">Hint:</span>
+                <span class="hint-lyric">Who holds the key to your heart?</span>
+            </p>
+        </div>
+    </div>
+
+    <div class="site-wrapper" id="site-content" style="display: none;">
         {{> header}}
         
         <main class="site-main">
@@ -32,6 +60,224 @@
     </div>
     
     <script src="{{asset "js/main.js"}}"></script>
+    <script>
+        // API URL for notifications
+        const API_URL = 'https://api.syunjyu.com';
+        
+        // Love Code 保护 - 双用户系统
+        (function() {
+            // Syunjyu 输入这个来读 Fei 写给她的信 (Fei 写: Dear Syunjyu)
+            const CODE_SYUNJYU = 'dearsyunjyu';
+            // Fei 输入这个来读 Syunjyu 写给他的信 (Syunjyu 写: Dear Fei)
+            const CODE_FEI = 'dearfei';
+            
+            const STORAGE_KEY = 'letters_love';
+            const USER_KEY = 'letters_user';
+            
+            const gate = document.getElementById('love-gate');
+            const content = document.getElementById('site-content');
+            const form = document.getElementById('love-form');
+            const input = document.getElementById('love-input');
+            const error = document.getElementById('love-error');
+            
+            function checkAuth() {
+                const auth = localStorage.getItem(STORAGE_KEY);
+                const user = localStorage.getItem(USER_KEY);
+                if (auth === 'true' && user) {
+                    showContent(user);
+                }
+            }
+            
+            function showContent(user) {
+                gate.style.display = 'none';
+                content.style.display = 'block';
+                
+                // 显示当前用户
+                const userEl = document.getElementById('current-user');
+                const logoutBtn = document.getElementById('logout-btn');
+                const notificationWrapper = document.getElementById('notification-wrapper');
+                
+                if (userEl && logoutBtn) {
+                    const displayName = user === 'syunjyu' ? 'Syunjyu 💕' : 'Fei 💕';
+                    userEl.textContent = displayName;
+                    logoutBtn.style.display = 'inline-block';
+                }
+                
+                // 显示通知按钮并加载通知
+                if (notificationWrapper) {
+                    notificationWrapper.style.display = 'block';
+                    loadNotifications();
+                }
+            }
+            
+            // 登出功能
+            window.lettersLogout = function() {
+                localStorage.removeItem(STORAGE_KEY);
+                localStorage.removeItem(USER_KEY);
+                window.location.reload();
+            };
+            
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const code = input.value.toLowerCase().trim();
+                
+                if (code === CODE_SYUNJYU) {
+                    // dearsyunjyu = Fei 输入（Fei 叫 Syunjyu）= 用户是 Fei
+                    localStorage.setItem(STORAGE_KEY, 'true');
+                    localStorage.setItem(USER_KEY, 'fei');
+                    gate.classList.add('fade-out');
+                    setTimeout(() => showContent('fei'), 300);
+                } else if (code === CODE_FEI) {
+                    // dearfei = Syunjyu 输入（Syunjyu 叫 Fei）= 用户是 Syunjyu
+                    localStorage.setItem(STORAGE_KEY, 'true');
+                    localStorage.setItem(USER_KEY, 'syunjyu');
+                    gate.classList.add('fade-out');
+                    setTimeout(() => showContent('syunjyu'), 300);
+                } else {
+                    error.textContent = "That's not it... try again 💔";
+                    input.classList.add('shake');
+                    setTimeout(() => input.classList.remove('shake'), 500);
+                    input.value = '';
+                    input.focus();
+                }
+            });
+            
+            checkAuth();
+        })();
+        
+        // ============================================
+        // Notification System
+        // ============================================
+        let notificationDropdownOpen = false;
+        
+        async function loadNotifications() {
+            const user = localStorage.getItem('letters_user');
+            if (!user) return;
+            
+            try {
+                // Load unread count
+                const countRes = await fetch(`${API_URL}/letters/notifications/${user}/count`);
+                const countData = await countRes.json();
+                
+                const badge = document.getElementById('notification-badge');
+                if (badge) {
+                    if (countData.count > 0) {
+                        badge.textContent = countData.count > 99 ? '99+' : countData.count;
+                        badge.style.display = 'flex';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
+                
+                // Load notifications list
+                const listRes = await fetch(`${API_URL}/letters/notifications/${user}?unread_only=false`);
+                const notifications = await listRes.json();
+                
+                renderNotifications(notifications);
+            } catch (err) {
+                console.error('Failed to load notifications:', err);
+            }
+        }
+        
+        function renderNotifications(notifications) {
+            const list = document.getElementById('notification-list');
+            if (!list) return;
+            
+            if (notifications.length === 0) {
+                list.innerHTML = '<div class="notification-empty">暂无新通知 💌</div>';
+                return;
+            }
+            
+            list.innerHTML = notifications.map(n => {
+                const avatar = n.from_user === 'syunjyu' ? '🌸' : '✨';
+                const avatarClass = n.from_user;
+                const unreadClass = n.is_read === 0 ? 'unread' : '';
+                const time = formatNotificationTime(n.created_at);
+                
+                return `
+                    <div class="notification-item ${unreadClass}" data-id="${n.id}" data-post="${n.post_id}" onclick="handleNotificationClick(${n.id}, '${n.post_id}')">
+                        <div class="notification-avatar ${avatarClass}">${avatar}</div>
+                        <div class="notification-content">
+                            <div class="notification-message">${n.message}</div>
+                            <div class="notification-time">${time}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function formatNotificationTime(dateStr) {
+            const date = new Date(dateStr);
+            const now = new Date();
+            const diff = now - date;
+            
+            if (diff < 60000) return '刚刚';
+            if (diff < 3600000) return Math.floor(diff / 60000) + ' 分钟前';
+            if (diff < 86400000) return Math.floor(diff / 3600000) + ' 小时前';
+            if (diff < 604800000) return Math.floor(diff / 86400000) + ' 天前';
+            
+            return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+        }
+        
+        window.toggleNotifications = function() {
+            const dropdown = document.getElementById('notification-dropdown');
+            if (!dropdown) return;
+            
+            notificationDropdownOpen = !notificationDropdownOpen;
+            dropdown.style.display = notificationDropdownOpen ? 'block' : 'none';
+            
+            if (notificationDropdownOpen) {
+                loadNotifications();
+            }
+        };
+        
+        window.handleNotificationClick = async function(notificationId, postId) {
+            const user = localStorage.getItem('letters_user');
+            if (!user) return;
+            
+            // Mark as read
+            try {
+                await fetch(`${API_URL}/letters/notifications/${notificationId}/read`, {
+                    method: 'POST'
+                });
+            } catch (err) {
+                console.error('Failed to mark notification as read:', err);
+            }
+            
+            // Navigate to post if we have a post_id
+            // Ghost posts typically have URLs like /post-slug/
+            // For now, just refresh notifications
+            loadNotifications();
+        };
+        
+        window.markAllRead = async function() {
+            const user = localStorage.getItem('letters_user');
+            if (!user) return;
+            
+            try {
+                await fetch(`${API_URL}/letters/notifications/${user}/read-all`, {
+                    method: 'POST'
+                });
+                loadNotifications();
+            } catch (err) {
+                console.error('Failed to mark all as read:', err);
+            }
+        };
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            const wrapper = document.getElementById('notification-wrapper');
+            const dropdown = document.getElementById('notification-dropdown');
+            
+            if (wrapper && dropdown && !wrapper.contains(e.target)) {
+                notificationDropdownOpen = false;
+                dropdown.style.display = 'none';
+            }
+        });
+        
+        // Refresh notifications every minute
+        setInterval(loadNotifications, 60000);
+    </script>
     {{ghost_foot}}
 </body>
 </html>
